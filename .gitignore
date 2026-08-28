@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# PMTiles build scratch (planetiler.jar + ~2GB of downloaded OSM/water/
+# natural-earth source data) — see docs/HANDOFF.md §6/§10. The output
+# archive itself is committed at public/tiles/sjdm.pmtiles.
+/.tools/

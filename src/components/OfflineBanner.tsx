@@ -8,9 +8,9 @@ export function OfflineBanner() {
   if (isOnline) return null;
 
   return (
-    <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
-      You&apos;re offline — map tiles need a connection until offline maps
-      ship. Fare lookup will keep working once fare data is live.
+    <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+      You&apos;re offline — showing the offline map. Fare lookup will work
+      offline too, once fare data is live.
     </div>
   );
 }
