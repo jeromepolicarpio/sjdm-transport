@@ -11,7 +11,7 @@ Tracks the build order defined in [`HANDOFF.md`](./HANDOFF.md) §8. Update this 
 | Phase | Status | Progress |
 |---|---|---|
 | Phase 1 — Scaffold & unblocked parts | ✅ Done | 6/6 |
-| Phase 2 — Mobile shell | 🚧 In progress | 1/4 |
+| Phase 2 — Mobile shell | 🚧 In progress | 2/4 |
 | Phase 3 — Route explorer | ⬜ Not started | 0/3 |
 | Phase 4 — Release | ⬜ Not started | 0/3 |
 
@@ -33,7 +33,7 @@ Tracks the build order defined in [`HANDOFF.md`](./HANDOFF.md) §8. Update this 
 ## Phase 2 — Mobile shell 🚧
 
 - [x] Add Capacitor, get a debug APK onto a real device — built & deployed to AVD emulator, map/boundary/fare-banner verified rendering
-- [ ] Native geolocation via Capacitor Geolocation
+- [x] Native geolocation via Capacitor Geolocation — `LocateControl` (custom maplibre-gl `IControl`) requests permission via `@capacitor/geolocation`, flies to and marks the user's position; `ACCESS_COARSE_LOCATION`/`ACCESS_FINE_LOCATION` added to `AndroidManifest.xml`; verified on AVD with mock GPS fix (permission dialog → grant → fly-to → marker)
 - [ ] Network-state detection and offline UI states
 - [ ] PMTiles generation and offline map loading (must cover outbound corridors to their termini)
 

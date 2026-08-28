@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 
 import cityBoundary from "@/data/city-boundary.json";
+import { LocateControl } from "@/lib/locate-control";
 
 // The bundler's own module-worker URL resolution for maplibre-gl comes back
 // empty in this project (Next.js + Turbopack/webpack), so GeoJSON/vector
@@ -53,6 +54,7 @@ export function CityMap() {
     });
 
     map.addControl(new NavigationControl(), "top-right");
+    map.addControl(new LocateControl(), "top-right");
 
     let cancelled = false;
 
