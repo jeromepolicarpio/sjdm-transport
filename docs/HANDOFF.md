@@ -188,7 +188,7 @@ Same rule as the fare matrix: an unverified route is worse than a missing one.
 
 ## 8. Suggested build order
 
-Work that doesn't depend on the TRU reply comes first.
+Work that doesn't depend on the TRU reply comes first. See [`PROGRESS.md`](./PROGRESS.md) for current status against this build order.
 
 **Phase 1 — scaffold and the parts nothing blocks**
 1. Init the Next.js project with `output: 'export'`, TypeScript strict, and Tailwind. Verify `next build` produces a static bundle before writing feature code.
