@@ -12,7 +12,7 @@ Tracks the build order defined in [`HANDOFF.md`](./HANDOFF.md) §8. Update this 
 |---|---|---|
 | Phase 1 — Scaffold & unblocked parts | ✅ Done | 6/6 |
 | Phase 2 — Mobile shell | ✅ Done | 4/4 |
-| Phase 3 — Route explorer | ⬜ Not started | 0/3 |
+| Phase 3 — Route explorer | 🚧 In progress | 3/3 groundwork, 0 routes |
 | Phase 4 — Release | ⬜ Not started | 0/3 |
 
 ---
@@ -43,11 +43,13 @@ Tracks the build order defined in [`HANDOFF.md`](./HANDOFF.md) §8. Update this 
 
 ---
 
-## Phase 3 — Route explorer ⬜
+## Phase 3 — Route explorer 🚧
 
-- [ ] PUV route data model (GeoJSON LineString + stops), OSRM-snapped to real roads
-- [ ] Route explorer UI (expand/collapse stops, per-route toggles, dashed alternates, shared-stop indicators, tap-to-fly-to-stop, lighter styling beyond city line)
-- [ ] Per-route contributor credits + `verifiedOn` staleness indicator
+- [x] PUV route data model — `PuvRoute`/`RouteStop`/`AlternateRoute`/`VehicleType` in `src/types/puv-route.ts` (no fare fields, by design — §3b); `src/data/puv-routes.ts` ships empty, same "don't invent it" rule as `zones.ts`
+- [x] Route explorer UI groundwork — `RouteExplorerPanel` (expand/collapse stops, per-route visibility checkboxes, tap-a-stop-to-fly-to via `CityMap`'s new imperative `flyTo` handle) and `src/lib/route-layers.ts` (map layers: dashed alternates, shared-stop indicator via bigger/ringed circles, in-city-vs-outside line weight split by testing each vertex against the city boundary polygon — approximate, no interpolation onto the actual boundary edge)
+- [x] Per-route contributor credit + `verifiedOn` staleness indicator — rendered in `RouteExplorerPanel`, flags unverified routes in amber
+
+**Still blocked on real data:** `puvRoutes` is empty, so the UI above is exercised only by its zero-route empty state — the toggle/expand/dashed-alternate/shared-stop/boundary-split code paths are unverified against an actual route until the first one is field-surveyed and GPS-logged. Re-check all of the above once real GeoJSON lands, same spirit as `data_pending` in the fare calculator (§3).
 
 **Blocked on:** field survey / GPS logging of real routes (independent of TRU reply — can start anytime).
 

@@ -4,13 +4,16 @@ import { Map as MapLibreMap, NavigationControl, addProtocol, config } from "mapl
 import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PMTiles, Protocol as PMTilesProtocol } from "pmtiles";
-import { useEffect, useRef } from "react";
+import type { Ref } from "react";
+import { useEffect, useImperativeHandle, useRef } from "react";
 
 import { BundledPMTilesSource } from "@/lib/bundled-pmtiles-source";
-import cityBoundary from "@/data/city-boundary.json";
+import { cityBoundary } from "@/lib/city-boundary";
 import { LocateControl } from "@/lib/locate-control";
 import { OFFLINE_STYLE, OFFLINE_PMTILES_URL } from "@/lib/offline-style";
+import { syncPuvRouteLayers } from "@/lib/route-layers";
 import { useNetworkStatus } from "@/lib/use-network-status";
+import type { PuvRoute } from "@/types/puv-route";
 
 // The bundler's own module-worker URL resolution for maplibre-gl comes back
 // empty in this project (Next.js + Turbopack/webpack), so GeoJSON/vector
@@ -32,6 +35,7 @@ addProtocol("pmtiles", pmtilesProtocol.tile);
 // boundary anchors the map, it does not fence it).
 const SJDM_CENTER: [number, number] = [121.0474088, 14.8101978];
 const INITIAL_ZOOM = 12;
+const STOP_FLY_TO_ZOOM = 15;
 
 const OSM_STYLE: StyleSpecification = {
   version: 8,
@@ -60,7 +64,7 @@ function addCityBoundaryLayer(map: MapLibreMap) {
 
   map.addSource("city-boundary", {
     type: "geojson",
-    data: cityBoundary as GeoJSON.FeatureCollection,
+    data: cityBoundary,
   });
 
   map.addLayer({
@@ -74,14 +78,45 @@ function addCityBoundaryLayer(map: MapLibreMap) {
   });
 }
 
-export function CityMap() {
+export interface CityMapHandle {
+  flyTo: (coords: [number, number]) => void;
+}
+
+interface CityMapProps {
+  ref?: Ref<CityMapHandle>;
+  routes: PuvRoute[];
+  visibleRouteIds: ReadonlySet<string>;
+}
+
+export function CityMap({ ref, routes, visibleRouteIds }: CityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const isOnline = useNetworkStatus();
-  // The style actually applied to the map, so the isOnline effect below can
-  // skip the redundant setStyle call that would otherwise fire right after
-  // mount (both effects see the same isOnline value on first render).
+  // The style actually applied to the map, so the isOnline effect below
+  // can skip the redundant setStyle call that would otherwise fire right
+  // after mount (both effects see the same isOnline value on first render).
   const appliedOnlineStyleRef = useRef(isOnline);
+  // "style.load" fires asynchronously, long after this effect's initial
+  // closure runs, so it must read current route state from a ref rather
+  // than close over the render's routes/visibleRouteIds.
+  const routesRef = useRef(routes);
+  const visibleRouteIdsRef = useRef(visibleRouteIds);
+  useEffect(() => {
+    routesRef.current = routes;
+    visibleRouteIdsRef.current = visibleRouteIds;
+  }, [routes, visibleRouteIds]);
+  // Map.isStyleLoaded() also waits on every visible tile/image, so it stays
+  // false well after the style itself is ready to accept layers — a route
+  // toggle mid-tile-load would silently no-op against that guard. Track
+  // "style spec applied" ourselves instead: true once "style.load" fires,
+  // false again the instant a new style is requested.
+  const isStyleReadyRef = useRef(false);
+
+  useImperativeHandle(ref, () => ({
+    flyTo(coords) {
+      mapRef.current?.flyTo({ center: coords, zoom: STOP_FLY_TO_ZOOM });
+    },
+  }));
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -102,7 +137,9 @@ export function CityMap() {
     // if this map instance was already torn down before "style.load" fired.
     map.on("style.load", () => {
       if (cancelled) return;
+      isStyleReadyRef.current = true;
       addCityBoundaryLayer(map);
+      syncPuvRouteLayers(map, routesRef.current, visibleRouteIdsRef.current);
     });
 
     mapRef.current = map;
@@ -119,8 +156,15 @@ export function CityMap() {
     if (!map || appliedOnlineStyleRef.current === isOnline) return;
 
     appliedOnlineStyleRef.current = isOnline;
+    isStyleReadyRef.current = false;
     map.setStyle(isOnline ? OSM_STYLE : OFFLINE_STYLE);
   }, [isOnline]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isStyleReadyRef.current) return;
+    syncPuvRouteLayers(map, routes, visibleRouteIds);
+  }, [routes, visibleRouteIds]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }
