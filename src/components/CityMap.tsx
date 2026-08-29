@@ -8,7 +8,7 @@ import type { Ref } from "react";
 import { useEffect, useImperativeHandle, useRef } from "react";
 
 import { BundledPMTilesSource } from "@/lib/bundled-pmtiles-source";
-import { cityBoundary } from "@/lib/city-boundary";
+import { cityBoundary, cityBounds } from "@/lib/city-boundary";
 import { LocateControl } from "@/lib/locate-control";
 import { OFFLINE_STYLE, OFFLINE_PMTILES_URL } from "@/lib/offline-style";
 import { syncPuvRouteLayers } from "@/lib/route-layers";
@@ -126,12 +126,28 @@ export function CityMap({ ref, routes, visibleRouteIds }: CityMapProps) {
       style: appliedOnlineStyleRef.current ? OSM_STYLE : OFFLINE_STYLE,
       center: SJDM_CENTER,
       zoom: INITIAL_ZOOM,
+      maxBounds: cityBounds,
     });
 
     map.addControl(new NavigationControl(), "top-right");
     map.addControl(new LocateControl(), "top-right");
 
     let cancelled = false;
+
+    // maxBounds alone only stops panning past the box; without a minZoom
+    // floor the user can still zoom out until the whole city (and beyond)
+    // fits with room to spare. Recomputed on "resize" too, since the zoom
+    // level that exactly fits cityBounds depends on the container's size.
+    const applyMinZoom = () => {
+      if (cancelled) return;
+      const camera = map.cameraForBounds(cityBounds);
+      // Cap at INITIAL_ZOOM: on a wide viewport the fit-to-bounds zoom can
+      // exceed the initial framing, and setMinZoom snaps the current camera
+      // up to satisfy the new floor — visible as an unwanted zoom-in jump.
+      if (camera?.zoom !== undefined) map.setMinZoom(Math.min(camera.zoom, INITIAL_ZOOM));
+    };
+    map.on("load", applyMinZoom);
+    map.on("resize", applyMinZoom);
 
     // React Strict Mode in dev mounts/unmounts/remounts this effect; skip
     // if this map instance was already torn down before "style.load" fired.

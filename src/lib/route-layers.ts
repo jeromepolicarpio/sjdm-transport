@@ -83,6 +83,7 @@ function addRouteLineLayers(map: MapLibreMap, route: PuvRoute): void {
     id: `${insideSourceId}-line`,
     type: "line",
     source: insideSourceId,
+    layout: { "line-join": "round", "line-cap": "round" },
     paint: { "line-color": route.color, "line-width": 4 },
   });
 
@@ -90,6 +91,7 @@ function addRouteLineLayers(map: MapLibreMap, route: PuvRoute): void {
     id: `${outsideSourceId}-line`,
     type: "line",
     source: outsideSourceId,
+    layout: { "line-join": "round", "line-cap": "round" },
     paint: {
       "line-color": route.color,
       "line-width": 3,
@@ -110,6 +112,7 @@ function addAlternateRouteLayer(
     id: `${sourceId}-line`,
     type: "line",
     source: sourceId,
+    layout: { "line-join": "round", "line-cap": "round" },
     paint: {
       "line-color": route.color,
       "line-width": 2,

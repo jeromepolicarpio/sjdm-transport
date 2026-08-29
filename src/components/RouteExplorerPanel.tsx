@@ -152,6 +152,12 @@ export function RouteExplorerPanel({
               })}
             </ul>
           )}
+          <a
+            href="/privacy"
+            className="mt-3 block text-xs text-slate-500 underline dark:text-slate-400"
+          >
+            Privacy policy
+          </a>
         </div>
       )}
     </div>
