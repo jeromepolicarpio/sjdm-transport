@@ -52,6 +52,41 @@ const SJDM_CENTER: [number, number] = [121.0474088, 14.8101978];
 const INITIAL_ZOOM = 12;
 const STOP_FLY_TO_ZOOM = 15;
 
+// frameFareTrip's fitBounds padding — see that method for what each value
+// accounts for.
+const MARGIN_PX = 24;
+const MAP_CONTROLS_CLEARANCE_PX = 80; // top-right NavigationControl + LocateControl stack
+// fitBounds silently no-ops (a console warnOnce, camera never moves) if
+// padding leaves no positive space to fit content into — on a short or
+// landscape viewport, top+bottom (or left+right) padding sized for a taller
+// screen can exceed the canvas outright. Scale padding down proportionally
+// once it would eat more than this fraction of the canvas, so a cramped
+// viewport degrades to a tighter frame instead of losing the animation.
+const MAX_PADDING_FRACTION = 0.6;
+
+interface FitPadding {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
+function clampFitPadding(padding: FitPadding, canvasWidth: number, canvasHeight: number): FitPadding {
+  const maxVertical = canvasHeight * MAX_PADDING_FRACTION;
+  const maxHorizontal = canvasWidth * MAX_PADDING_FRACTION;
+  const verticalTotal = padding.top + padding.bottom;
+  const horizontalTotal = padding.left + padding.right;
+  const verticalScale = verticalTotal > maxVertical ? maxVertical / verticalTotal : 1;
+  const horizontalScale = horizontalTotal > maxHorizontal ? maxHorizontal / horizontalTotal : 1;
+
+  return {
+    top: padding.top * verticalScale,
+    bottom: padding.bottom * verticalScale,
+    left: padding.left * horizontalScale,
+    right: padding.right * horizontalScale,
+  };
+}
+
 const OSM_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -101,6 +136,12 @@ export interface CityMapHandle {
     routeGeometry: GeoJSON.LineString | null,
     origin: LngLat,
     destination: LngLat,
+    // Rendered height (px) of whatever overlay covers the bottom of the map
+    // for this trip — the mobile FareResultCard, 0 on desktop where it's
+    // md:hidden. Measured by the caller (AppShell) since the card has no
+    // fixed height. See frameFareTrip's own comment for why this can't be a
+    // constant here.
+    bottomOverlayPx: number,
   ) => void;
   resetView: () => void;
 }
@@ -211,16 +252,38 @@ export function CityMap({
       const map = mapRef.current;
       if (map) setDarkOverlayVisible(map, visible);
     },
-    frameFareTrip(routeGeometry, origin, destination) {
+    frameFareTrip(routeGeometry, origin, destination, bottomOverlayPx) {
       const map = mapRef.current;
       if (!map) return;
-      // Padding accounts for the desktop sidebar (w-80 = 320px) and the
-      // mobile bottom sheet's collapsed height, so neither pin lands
-      // underneath them. Single fitBounds call — MapLibre already arcs
-      // out-and-back-in on its own for a longer trip, without a separate
-      // staged zoom-out/zoom-in sequence.
+      // fitBounds padding is measured in canvas-local pixels — AppHeader,
+      // StartEndBar, and the desktop sidebar are all flex siblings of this
+      // component's own container (never painted over the canvas), so they
+      // need no padding at all; only what actually overlays the canvas does:
+      // the top-right NavigationControl/LocateControl stack, and on mobile,
+      // FareResultCard along the bottom (bottomOverlayPx — 0 on desktop,
+      // where it's md:hidden). Single fitBounds call either way — MapLibre
+      // already arcs out-and-back-in on its own for a longer trip, without a
+      // separate staged zoom-out/zoom-in sequence.
+      const canvas = map.getCanvas();
+      // A zero-sized canvas (e.g. mid-layout, or an ancestor briefly
+      // display:none) would drive every clamped value to 0 and hand
+      // MapLibre a padding that exactly consumes the canvas — its fitBounds
+      // math divides by the remaining space, so that's a divide-by-zero
+      // (-Infinity zoom) rather than the graceful no-op a missing map
+      // instance gets above.
+      if (canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
+      const padding = clampFitPadding(
+        {
+          top: MARGIN_PX,
+          right: MAP_CONTROLS_CLEARANCE_PX,
+          left: MARGIN_PX,
+          bottom: bottomOverlayPx + MARGIN_PX,
+        },
+        canvas.clientWidth,
+        canvas.clientHeight,
+      );
       map.fitBounds(computeFareTripBounds(routeGeometry, origin, destination), {
-        padding: { top: 80, bottom: 140, left: 340, right: 80 },
+        padding,
         maxZoom: 16,
         duration: 1200,
       });

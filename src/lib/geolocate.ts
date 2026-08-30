@@ -43,6 +43,20 @@ function normalizeGeolocationError(error: unknown): Error {
   }
 }
 
+// iOS Safari has a long-standing WebKit bug where getCurrentPosition()'s own
+// `timeout` option is unreliable with enableHighAccuracy — the call can hang
+// well past it (observed: indefinitely on an iPhone 8 Plus/iOS 16, likely
+// indoors with a weak GPS fix), leaving the UI stuck on "Finding location…"
+// forever. Race it against a timeout we control ourselves so the promise
+// always settles, regardless of whether the platform honors its own.
+function createTimeoutGuard(ms: number): { promise: Promise<never>; clear: () => void } {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const promise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject({ code: 3 }), ms);
+  });
+  return { promise, clear: () => clearTimeout(timeoutId) };
+}
+
 // Shared by src/lib/locate-control.ts (the map's own locate button) and
 // StartEndBar's "use my location" inputs, so permission handling only lives
 // in one place — goes through @capacitor/geolocation for the native Android
@@ -53,14 +67,23 @@ export async function getCurrentLngLat(): Promise<LngLat> {
     throw new Error("Location permission denied");
   }
 
+  // Slightly past LOCATE_TIMEOUT_MS so a platform that DOES honor its own
+  // timeout still produces the more specific native error first.
+  const guard = createTimeoutGuard(LOCATE_TIMEOUT_MS + 1_000);
+
   try {
-    const position = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
-      timeout: LOCATE_TIMEOUT_MS,
-    });
+    const position = await Promise.race([
+      Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: LOCATE_TIMEOUT_MS,
+      }),
+      guard.promise,
+    ]);
 
     return { lng: position.coords.longitude, lat: position.coords.latitude };
   } catch (error: unknown) {
     throw normalizeGeolocationError(error);
+  } finally {
+    guard.clear();
   }
 }

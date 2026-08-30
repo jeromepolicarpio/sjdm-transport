@@ -141,6 +141,11 @@ export function AppShell() {
   // offscreen gets one corrective re-fit), not on every fare-schedule/
   // trip-type re-render once both are set.
   const framedKeyRef = useRef<string | null>(null);
+  // So frameFareTrip can pad the camera fit by exactly how much of the map
+  // the mobile fare card covers — the card has no fixed height, and
+  // measuring it beats guessing a constant that drifts as its content
+  // changes. Read fresh (not from state) at call time in the effect below.
+  const fareResultCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // react-hooks/exhaustive-deps assumes refs are DOM nodes captured once;
@@ -309,7 +314,8 @@ export function AppShell() {
     if (framedKeyRef.current === key) return;
     framedKeyRef.current = key;
 
-    mapRef.current?.frameFareTrip(fareRouteGeometry, origin.coords, destination.coords);
+    const cardOverlayPx = fareResultCardRef.current?.getBoundingClientRect().height ?? 0;
+    mapRef.current?.frameFareTrip(fareRouteGeometry, origin.coords, destination.coords, cardOverlayPx);
   }, [activeTab, origin, destination, fareRouteGeometry]);
 
   const renderPanel = () => {
@@ -416,6 +422,7 @@ export function AppShell() {
             )}
             {activeTab === "fare" && origin && destination && (
               <FareResultCard
+                ref={fareResultCardRef}
                 origin={origin}
                 destination={destination}
                 passengerType={passengerType}
