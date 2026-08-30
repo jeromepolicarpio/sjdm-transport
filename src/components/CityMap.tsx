@@ -9,7 +9,7 @@ import { useEffect, useImperativeHandle, useRef } from "react";
 
 import { BundledPMTilesSource } from "@/lib/bundled-pmtiles-source";
 import { cityBoundary, cityBounds } from "@/lib/city-boundary";
-import { syncFareMarker } from "@/lib/fare-markers";
+import { FARE_MARKER_PIN_PX, syncFareMarker } from "@/lib/fare-markers";
 import {
   computeFareTripBounds,
   ensureFareRouteLayer,
@@ -57,12 +57,12 @@ const STOP_FLY_TO_ZOOM = 15;
 const MARGIN_PX = 24;
 const MAP_CONTROLS_CLEARANCE_PX = 80; // top-right NavigationControl + LocateControl stack
 // fitBounds fits the marker's *coordinate*, not its drawn extent — an
-// origin/destination pin is a 44px-tall DOM element anchored at its tip
-// ("bottom"), so it draws entirely above that coordinate. Plain MARGIN_PX
-// on top left only 24px of clearance, letting the pin's crown poke out of
-// the canvas and overlap AppHeader/StartEndBar above it. Match the pin's
-// own height (see fare-markers.ts's pinSvg) plus a small buffer instead.
-const FARE_MARKER_TOP_CLEARANCE_PX = 44 + MARGIN_PX;
+// origin/destination pin is a DOM element anchored at its tip ("bottom"),
+// so it draws entirely above that coordinate. Plain MARGIN_PX on top left
+// only 24px of clearance, letting the pin's crown poke out of the canvas
+// and overlap AppHeader/StartEndBar above it. Match the pin's own height
+// (FARE_MARKER_PIN_PX, from fare-markers.ts) plus a small buffer instead.
+const FARE_MARKER_TOP_CLEARANCE_PX = FARE_MARKER_PIN_PX + MARGIN_PX;
 // fitBounds silently no-ops (a console warnOnce, camera never moves) if
 // padding leaves no positive space to fit content into — on a short or
 // landscape viewport, top+bottom (or left+right) padding sized for a taller
@@ -224,10 +224,15 @@ export function CityMap({
   // React-controlled `className` on this same node would overwrite the
   // whole attribute on every pickingField change and silently wipe those
   // out — letting a marker/route render outside the map and over whatever
-  // sits above it (AppHeader/StartEndBar). Toggle the cursor class via
-  // classList instead, so React never touches this element's className.
+  // sits above it (AppHeader/StartEndBar). So this container's className
+  // must stay a static string forever — the picking cursor is set on the
+  // canvas element instead (also the only element `cursor-crosshair` on
+  // the container would ever have affected: `.maplibregl-canvas-container`
+  // sets its own explicit `cursor: grab`, which wins over inheriting from
+  // an ancestor class regardless).
   useEffect(() => {
-    containerRef.current?.classList.toggle("cursor-crosshair", pickingField !== null);
+    const canvas = mapRef.current?.getCanvas();
+    if (canvas) canvas.style.cursor = pickingField ? "crosshair" : "";
   }, [pickingField]);
   useEffect(() => {
     routesRef.current = routes;

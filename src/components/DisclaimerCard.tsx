@@ -1,8 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 
-// Google Form for route corrections / accuracy feedback — same value as
-// src/components/panels/AboutPanel.tsx. TODO: fill in once the form exists.
-const FEEDBACK_FORM_URL: string | null = null;
+import { FEEDBACK_FORM_URL } from "@/lib/feedback-form";
 
 // Pinned to the sidebar bottom. Not decoration — docs/HANDOFF.md §7 states
 // an unverified route is worse than a missing one, so surfacing that
@@ -19,16 +17,14 @@ export function DisclaimerCard() {
             Drivers sometimes take different turns depending on traffic or
             their assigned area.
           </p>
-          {FEEDBACK_FORM_URL ? (
-            <a
-              href={FEEDBACK_FORM_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1 inline-block underline"
-            >
-              Know the correct route? Send us feedback
-            </a>
-          ) : null}
+          <a
+            href={FEEDBACK_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block underline"
+          >
+            Know the correct route? Send us feedback
+          </a>
         </div>
       </div>
     </div>

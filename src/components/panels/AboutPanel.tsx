@@ -2,9 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Heart, MapPin, Code2, Flame } from "lucide-react";
 
-// Google Form for route corrections / accuracy feedback.
-const FEEDBACK_FORM_URL: string | null =
-  "https://docs.google.com/forms/d/e/1FAIpQLSe4org1BVQZjcvN08Yyrfc-SLZ12FI9aC8F-l66fAqbCoxJbQ/viewform?usp=dialog";
+import { FEEDBACK_FORM_URL } from "@/lib/feedback-form";
 
 export function AboutPanel() {
   return (
@@ -13,17 +11,16 @@ export function AboutPanel() {
       <div className="mb-3 flex items-center gap-3">
         <Image
           src="/sjdm-transport-logo.png"
-          alt="SJDM Transport"
+          alt=""
           width={44}
           height={44}
           className="rounded-xl"
-          priority
         />
         <div>
           <p className="font-bold leading-tight text-slate-900">
             SJDM Transport
           </p>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-500">
             Fares and routes for every San Jose&#241;o commute
           </p>
         </div>
@@ -31,7 +28,7 @@ export function AboutPanel() {
 
       <div className="mb-4 border-t border-slate-100" />
 
-      <Section icon={<Heart size={14} className="text-red-400" />} title="The Story">
+      <Section icon={<Heart size={14} className="text-red-400" aria-hidden />} title="The Story">
         <p className="mb-3 leading-relaxed text-slate-600">
           SJDM Transport started from a familiar frustration: not knowing if
           the tricycle fare you were quoted was fair, or which bus and
@@ -45,7 +42,7 @@ export function AboutPanel() {
         </p>
       </Section>
 
-      <Section icon={<MapPin size={14} className="text-blue-500" />} title="What this is">
+      <Section icon={<MapPin size={14} className="text-blue-500" aria-hidden />} title="What this is">
         <p className="mb-3 leading-relaxed text-slate-600">
           A free, ad-free, non-commercial app to help commuters in the City
           of San Jose del Monte (CSJDM) figure out the correct tricycle fare
@@ -75,7 +72,7 @@ export function AboutPanel() {
         </p>
       </Section>
 
-      <Section icon={<Code2 size={14} className="text-emerald-500" />} title="A Solo Project">
+      <Section icon={<Code2 size={14} className="text-emerald-500" aria-hidden />} title="A Solo Project">
         <p className="leading-relaxed text-slate-600">
           This entire app was designed and built by one person &mdash; no
           company, no team, no budget. Just pure passion for SJDM and the
@@ -112,27 +109,23 @@ export function AboutPanel() {
         <Link href="/privacy" className="text-blue-600 underline">
           Privacy policy
         </Link>
-        {FEEDBACK_FORM_URL ? (
-          <a
-            href={FEEDBACK_FORM_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="text-blue-600 underline"
-          >
-            Send feedback / report a route
-          </a>
-        ) : (
-          <span className="text-slate-400">Feedback form coming soon</span>
-        )}
+        <a
+          href={FEEDBACK_FORM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 underline"
+        >
+          Send feedback / report a route
+        </a>
       </div>
 
       {/* Support / donations */}
       <div className="mt-1 mb-5 border-t border-slate-100 pt-5">
         <div className="mb-2 flex items-center gap-1.5">
-          <Flame size={14} className="text-orange-400" />
-          <h3 className="text-sm font-semibold text-slate-800">
+          <Flame size={14} className="text-orange-400" aria-hidden />
+          <h2 className="text-sm font-semibold text-slate-800">
             Support This Project
-          </h3>
+          </h2>
         </div>
         <p className="mb-4 leading-relaxed text-slate-500">
           This app is completely free and not monetized. If you&apos;d like
@@ -140,42 +133,21 @@ export function AboutPanel() {
           required.
         </p>
         <div className="flex gap-2">
-          <div
-            className="flex min-w-0 flex-1 flex-col items-center gap-2 rounded-xl p-3"
-            style={{ backgroundColor: "#007AFF" }}
-          >
-            <span className="text-sm font-bold tracking-wide text-white">
-              GCash
-            </span>
-            <Image
-              src="/qr-sjdm-gcash.png"
-              alt="GCash QR code"
-              width={200}
-              height={200}
-              className="aspect-square w-full rounded-md object-cover"
-            />
-          </div>
-          <div
-            className="flex min-w-0 flex-1 flex-col items-center gap-2 rounded-xl p-3"
-            style={{ backgroundColor: "#007AFF" }}
-          >
-            <span className="text-sm font-bold tracking-wide">
-              <span className="text-white">BD</span>
-              <span className="text-yellow-400">O</span>
-            </span>
-            <Image
-              src="/qr-sjdm-bdo.png"
-              alt="BDO QR code"
-              width={200}
-              height={200}
-              className="aspect-square w-full rounded-md object-cover"
-            />
-          </div>
+          <DonationCard label="GCash" src="/qr-sjdm-gcash.png" />
+          <DonationCard
+            label={
+              <>
+                <span className="text-white">BD</span>
+                <span className="text-yellow-400">O</span>
+              </>
+            }
+            src="/qr-sjdm-bdo.png"
+          />
         </div>
       </div>
 
       <div className="pt-2 text-center">
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500">
           Developed by{" "}
           <a
             href="https://jeromepolicarpio.github.io/"
@@ -187,6 +159,30 @@ export function AboutPanel() {
           </a>
         </p>
       </div>
+    </div>
+  );
+}
+
+// One donation QR card (GCash/BDO). object-contain, not object-cover — a
+// QR code that gets cropped can silently stop scanning, and both source
+// images happen to be square today but nothing enforces that staying true.
+function DonationCard({
+  label,
+  src,
+}: {
+  label: React.ReactNode;
+  src: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-2 rounded-xl bg-blue-600 p-3">
+      <span className="text-sm font-bold tracking-wide text-white">{label}</span>
+      <Image
+        src={src}
+        alt="Scan with your banking or e-wallet app to donate"
+        width={200}
+        height={200}
+        className="aspect-square w-full rounded-md bg-white object-contain"
+      />
     </div>
   );
 }

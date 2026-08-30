@@ -5,6 +5,12 @@ import type { FarePoint } from "@/types/tricycle";
 
 export type FareMarkerVariant = "origin" | "destination";
 
+// Drawn size of the pin SVG below — exported so CityMap's frameFareTrip
+// padding (which must clear the pin's full height above its anchor point)
+// derives from the same number instead of hardcoding a second "44" that
+// could silently drift out of sync with this one.
+export const FARE_MARKER_PIN_PX = 44;
+
 const VARIANT_COLOR: Record<FareMarkerVariant, string> = {
   origin: "#16a34a",
   destination: "#dc2626",
@@ -17,7 +23,7 @@ const VARIANT_COLOR: Record<FareMarkerVariant, string> = {
 // the raster OSM basemap and the offline vector style's beige background.
 function pinSvg(color: string): string {
   return `
-    <svg class="fare-marker-pin" width="44" height="44" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg class="fare-marker-pin" width="${FARE_MARKER_PIN_PX}" height="${FARE_MARKER_PIN_PX}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
             fill="${color}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
       <circle cx="12" cy="10" r="3" fill="#ffffff"/>
