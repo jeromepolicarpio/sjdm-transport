@@ -377,7 +377,12 @@ export function AppShell() {
           </div>
         </aside>
 
-        <div className="relative flex min-h-0 flex-1 flex-col">
+        {/* min-w-0 matters here: without it, a long place name's nowrap
+            truncate span deep in StartEndBar (or the map canvas's own inline
+            pixel width) sets this flex item's min-content width instead of
+            letting it shrink to the viewport — pushing StartEndBar, the map,
+            and the fare card past the screen edge. */}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           {activeTab === "fare" && (
             <StartEndBar
               origin={origin}

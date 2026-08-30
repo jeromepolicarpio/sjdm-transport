@@ -33,7 +33,10 @@
    document — any child that overflows its container (a long place name in
    StartEndBar/FareResultCard, e.g.) should clip or wrap in place, not push
    the whole page into horizontal scroll and let the browser auto-scroll it
-   sideways to reveal a focused control. */
+   sideways to reveal a focused control. This is a backstop, not the fix: the
+   actual containment comes from `min-w-0` on the flex chain leading to
+   StartEndBar (see AppShell.tsx) so nowrap/truncated text never forces those
+   containers wider than the viewport in the first place. */
 html,
 body {
   overflow-x: hidden;
