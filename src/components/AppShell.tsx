@@ -357,6 +357,10 @@ export function AppShell() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <h1 className="sr-only">
+        SJDM Transport — PUV route map and tricycle fare calculator for San
+        Jose del Monte, Bulacan
+      </h1>
       <AppHeader onMenuOpen={() => setIsMenuOpen(true)} />
 
       <div className="flex min-h-0 flex-1">

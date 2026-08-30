@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — SJDM Transport",
+  title: "Privacy Policy",
   description:
     "SJDM Transport does not collect, store, or transmit any personal data.",
+  alternates: {
+    canonical: "/privacy",
+  },
 };
 
 const LAST_UPDATED = "2026-08-30";

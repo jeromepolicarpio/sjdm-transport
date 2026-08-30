@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,59 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SJDM Transport",
-  description: "Offline-first PUV route and fare-zone map for San Jose del Monte, Bulacan.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_NAME,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: "/sjdm-transport-logo.png",
+        width: 1243,
+        height: 1266,
+        alt: SITE_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: ["/sjdm-transport-logo.png"],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: SITE_NAME,
+  description: SITE_DESCRIPTION,
+  url: SITE_URL,
+  applicationCategory: "TravelApplication",
+  operatingSystem: "Any",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "PHP",
+  },
+  spatialCoverage: {
+    "@type": "City",
+    name: "San Jose del Monte",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -29,6 +81,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           this only suppresses the attribute-diff warning on this element,
           not hydration errors from this app's own code. */}
       <body className="h-full flex flex-col" suppressHydrationWarning>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         {children}
       </body>
     </html>
