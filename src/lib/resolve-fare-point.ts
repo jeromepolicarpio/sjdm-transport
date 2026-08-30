@@ -15,15 +15,24 @@ export async function resolveFarePoint(
   rawCoords: LngLat,
   signal?: AbortSignal,
 ): Promise<FarePoint> {
-  const coords = (await snapToNearestRoad(rawCoords, signal)) ?? rawCoords;
-  const place = await reverseGeocode(coords, signal);
+  try {
+    const coords = (await snapToNearestRoad(rawCoords, signal)) ?? rawCoords;
+    const place = await reverseGeocode(coords, signal);
 
-  return {
-    coords,
-    label: place?.name ?? null,
-    district: place?.district ?? null,
-    isResolving: false,
-  };
+    return {
+      coords,
+      label: place?.name ?? null,
+      district: place?.district ?? null,
+      isResolving: false,
+    };
+  } catch {
+    // snapToNearestRoad/reverseGeocode already catch their own fetch
+    // failures internally and never throw — this is a last-resort guard so
+    // an unexpected throw (e.g. a missing browser API) degrades to the raw
+    // tap instead of leaving the caller's promise chain rejected and the
+    // point stuck in isResolving forever.
+    return { coords: rawCoords, label: null, district: null, isResolving: false };
+  }
 }
 
 /** The instantly-visible placeholder point, before resolveFarePoint settles. */
