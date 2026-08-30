@@ -56,6 +56,13 @@ const STOP_FLY_TO_ZOOM = 15;
 // accounts for.
 const MARGIN_PX = 24;
 const MAP_CONTROLS_CLEARANCE_PX = 80; // top-right NavigationControl + LocateControl stack
+// fitBounds fits the marker's *coordinate*, not its drawn extent — an
+// origin/destination pin is a 44px-tall DOM element anchored at its tip
+// ("bottom"), so it draws entirely above that coordinate. Plain MARGIN_PX
+// on top left only 24px of clearance, letting the pin's crown poke out of
+// the canvas and overlap AppHeader/StartEndBar above it. Match the pin's
+// own height (see fare-markers.ts's pinSvg) plus a small buffer instead.
+const FARE_MARKER_TOP_CLEARANCE_PX = 44 + MARGIN_PX;
 // fitBounds silently no-ops (a console warnOnce, camera never moves) if
 // padding leaves no positive space to fit content into — on a short or
 // landscape viewport, top+bottom (or left+right) padding sized for a taller
@@ -211,6 +218,17 @@ export function CityMap({
   // outside React state since syncFareMarker mutates/reuses them in place.
   const originMarkerRef = useRef<Marker | null>(null);
   const destinationMarkerRef = useRef<Marker | null>(null);
+  // containerRef's element is also MapLibre's own `container` — it appends
+  // its own classes to it imperatively (notably "maplibregl-map", which
+  // carries the `overflow: hidden` that clips markers to the map's box). A
+  // React-controlled `className` on this same node would overwrite the
+  // whole attribute on every pickingField change and silently wipe those
+  // out — letting a marker/route render outside the map and over whatever
+  // sits above it (AppHeader/StartEndBar). Toggle the cursor class via
+  // classList instead, so React never touches this element's className.
+  useEffect(() => {
+    containerRef.current?.classList.toggle("cursor-crosshair", pickingField !== null);
+  }, [pickingField]);
   useEffect(() => {
     routesRef.current = routes;
     visibleRouteIdsRef.current = visibleRouteIds;
@@ -274,7 +292,7 @@ export function CityMap({
       if (canvas.clientWidth === 0 || canvas.clientHeight === 0) return;
       const padding = clampFitPadding(
         {
-          top: MARGIN_PX,
+          top: FARE_MARKER_TOP_CLEARANCE_PX,
           right: MAP_CONTROLS_CLEARANCE_PX,
           left: MARGIN_PX,
           bottom: bottomOverlayPx + MARGIN_PX,
@@ -457,7 +475,7 @@ export function CityMap({
   return (
     <div
       ref={containerRef}
-      className={`h-full w-full ${pickingField ? "cursor-crosshair" : ""}`}
+      className="h-full w-full"
     />
   );
 }
