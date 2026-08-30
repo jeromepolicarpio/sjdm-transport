@@ -111,45 +111,78 @@ export function FareMatrixModal({ open, onClose }: FareMatrixModalProps) {
               the calculator itself uses (src/data/fare-schedule.ts), so a
               screen-reader user or anyone who can't read the scanned image
               still gets the actual numbers, not just an alt-text label. */}
-          {/* min-w-max, not w-full: the parent is overflow-auto specifically
-              so a narrow viewport scrolls the table horizontally instead of
-              hard-wrapping "Succeeding km (per passenger)" et al. into
-              illegible column widths. */}
-          <table className="min-w-max max-w-3xl border-collapse text-left text-sm">
-            <caption className="mb-2 text-left text-xs text-slate-500">
+          <div className="w-full max-w-3xl">
+            <p id="fare-matrix-caption" className="mb-3 text-left text-xs text-slate-500">
               CSJDM tricycle fare matrix, City Ordinance No. 2022-107-06
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col" className="border-b border-slate-200 py-2 pr-3 font-medium text-slate-600">
-                  Gas price (per liter)
-                </th>
-                {fareSchedule.map((entry) => (
-                  <th
-                    key={entry.bracket}
-                    scope="col"
-                    className="border-b border-slate-200 py-2 pr-3 font-medium text-slate-600"
-                  >
-                    ₱{entry.minGasolinePrice}–{entry.maxGasolinePrice}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ROWS.map(({ label, key }) => (
-                <tr key={key}>
-                  <th scope="row" className="border-b border-slate-100 py-2 pr-3 font-normal text-slate-700">
-                    {label}
+            </p>
+
+            {/* Below md: one card per gas-price bracket, label/value pairs
+                stacked vertically. A 5-column table (label + 4 brackets)
+                can't fit a phone width without hard-wrapping long labels
+                like "Succeeding km (per passenger)" into illegible slivers
+                or forcing a horizontal scroll users didn't notice was
+                there — stacking removes the horizontal axis entirely.
+                Matches the app's mobile/desktop split everywhere else
+                (AppShell, CityMap, FareResultCard, StartEndBar all use
+                md:), so the table doesn't flip on while the rest of the
+                shell is still in mobile layout. */}
+            <div className="grid gap-4 md:hidden">
+              {fareSchedule.map((entry) => (
+                <div key={entry.bracket} className="rounded-lg border border-slate-200 p-3">
+                  <h3 className="mb-2 text-sm font-semibold text-slate-800">
+                    Gas ₱{entry.minGasolinePrice}–{entry.maxGasolinePrice}/L
+                  </h3>
+                  <dl className="divide-y divide-slate-100">
+                    {ROWS.map(({ label, key }) => (
+                      <div key={key} className="flex items-baseline justify-between gap-3 py-1.5">
+                        <dt className="text-sm text-slate-600">{label}</dt>
+                        <dd className="whitespace-nowrap text-sm font-medium tabular-nums text-slate-900">
+                          {formatPeso(entry[key])}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+            </div>
+
+            {/* md and up: original table, wide enough to lay out normally. */}
+            <table
+              aria-labelledby="fare-matrix-caption"
+              className="hidden min-w-max border-collapse text-left text-sm md:table"
+            >
+              <thead>
+                <tr>
+                  <th scope="col" className="border-b border-slate-200 py-2 pr-3 font-medium text-slate-600">
+                    Gas price (per liter)
                   </th>
                   {fareSchedule.map((entry) => (
-                    <td key={entry.bracket} className="border-b border-slate-100 py-2 pr-3 text-slate-800">
-                      {formatPeso(entry[key])}
-                    </td>
+                    <th
+                      key={entry.bracket}
+                      scope="col"
+                      className="border-b border-slate-200 py-2 pr-3 font-medium text-slate-600"
+                    >
+                      ₱{entry.minGasolinePrice}–{entry.maxGasolinePrice}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {ROWS.map(({ label, key }) => (
+                  <tr key={key}>
+                    <th scope="row" className="border-b border-slate-100 py-2 pr-3 font-normal text-slate-700">
+                      {label}
+                    </th>
+                    {fareSchedule.map((entry) => (
+                      <td key={entry.bracket} className="border-b border-slate-100 py-2 pr-3 tabular-nums text-slate-800">
+                        {formatPeso(entry[key])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         <div

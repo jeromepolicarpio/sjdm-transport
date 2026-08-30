@@ -24,7 +24,7 @@ Tracks the build order defined in [`HANDOFF.md`](./HANDOFF.md) §8. Update this 
 - [x] City boundary layer (anchor, not mask)
 - [x] Zone-lookup module with empty data file (structured for later JSON fill-in)
 - [x] "Fare data pending" UI state
-- [x] Deploy to Vercel — live at `sjdm-transport.vercel.app`
+- [x] Deploy to Vercel — target domain `sjdmtransport.vercel.app` (pending manual alias assignment in the Vercel dashboard)
 
 **Notes:** React Strict Mode double-invoke, maplibre-gl worker path, and layout issues hit and fixed along the way. Repo pushed to `jeromepolicarpio/sjdm-transport` on GitHub.
 
