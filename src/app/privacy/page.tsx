@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     "SJDM Transport does not collect, store, or transmit any personal data.",
 };
 
-const LAST_UPDATED = "2026-08-29";
+const LAST_UPDATED = "2026-08-30";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -28,11 +28,45 @@ export default function PrivacyPolicyPage() {
       <h2 className="mt-8 text-lg font-semibold">Location</h2>
       <p className="mt-2">
         The app can use your device&apos;s GPS, with your permission, to
-        center the map on your current position. This location is used only
-        on your device, for that one purpose, and is never sent anywhere —
-        not to us, and not to any third party. You can deny or revoke
-        location permission at any time in your device settings without
-        losing any other app functionality.
+        center the map on your current position or to fill in the tricycle
+        fare calculator&apos;s starting point. That request stays on your
+        device and is never sent anywhere. You can deny or revoke location
+        permission at any time in your device settings without losing any
+        other app functionality.
+      </p>
+
+      <h2 className="mt-8 text-lg font-semibold">Routing and place names</h2>
+      <p className="mt-2">
+        The tricycle fare calculator sends the two points you pick — by
+        tapping the map or using &quot;My location&quot; — to two free,
+        public services so it can draw the actual road route and show a
+        place name instead of raw coordinates:{" "}
+        <a
+          href="https://project-osrm.org/"
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-2"
+        >
+          OSRM
+        </a>{" "}
+        (road-network routing and distance) and{" "}
+        <a
+          href="https://photon.komoot.io/"
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-2"
+        >
+          Photon
+        </a>{" "}
+        (reverse geocoding, run by Komoot). Each request carries only the
+        coordinates for that one point — never your identity, an account, or
+        a history of past trips, since this app doesn&apos;t have any of
+        those to send. Like any web request, these services see your
+        device&apos;s IP address as a normal function of internet routing.
+        We don&apos;t control what OSRM or Photon do with that; see their
+        own privacy terms if you want more detail. If you&apos;re offline,
+        the calculator skips both requests and falls back to your raw
+        coordinates and a straight-line distance instead.
       </p>
 
       <h2 className="mt-8 text-lg font-semibold">Network status</h2>

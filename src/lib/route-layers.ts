@@ -6,7 +6,20 @@ import type { AlternateRoute, PuvRoute } from "@/types/puv-route";
 
 // Every layer/source this module adds is prefixed so it can be found and
 // torn down without tracking ids across calls (see removePuvRouteLayers).
-const LAYER_PREFIX = "puv-route-";
+// Exported so CityMap.tsx can delegate a single click listener across
+// every route line layer without rebinding per sync (layers are torn down
+// and rebuilt on every syncPuvRouteLayers call, so a listener bound to a
+// specific layer id would double up the next time that id is reused).
+export const LAYER_PREFIX = "puv-route-";
+export const ROUTE_LINE_LAYER_SUFFIX = "-line";
+
+// Persistent background layer toggled by the map legend's "dark overlay"
+// checkbox. Not part of LAYER_PREFIX/teardown-and-rebuild — it's added once
+// per style load and only has its visibility flipped, so it must sit below
+// the route layers regardless of how many times those get resynced.
+export const DARK_OVERLAY_LAYER_ID = "puv-dark-overlay";
+
+const DIMMED_OPACITY_FACTOR = 0.25;
 
 // Splits a route line into inside/outside-city runs so the in-city portion
 // can render at full weight and the rest lighter — docs/HANDOFF.md §3b (the
@@ -57,45 +70,115 @@ export function splitLineByCityBoundary(
   return { insideSegments, outsideSegments };
 }
 
+// Bounding box across a route's main line plus any alternates, for
+// CityMap's "fit to selected route" behavior. Plain min/max scan rather than
+// pulling in @turf/bbox for one call site.
+export function computeRouteBounds(
+  route: PuvRoute,
+): [[number, number], [number, number]] {
+  const allCoords: [number, number][] = [
+    ...(route.geojson.geometry.coordinates as [number, number][]),
+    ...(route.alternateRoutes?.flatMap(
+      (alt) => alt.geojson.geometry.coordinates as [number, number][],
+    ) ?? []),
+  ];
+
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+
+  for (const [lng, lat] of allCoords) {
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+  }
+
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+}
+
+function withProperties(
+  feature: GeoJSON.Feature<GeoJSON.LineString>,
+  properties: Record<string, string>,
+): GeoJSON.Feature<GeoJSON.LineString> {
+  return { ...feature, properties: { ...feature.properties, ...properties } };
+}
+
 function featureCollection(
   features: GeoJSON.Feature[],
 ): GeoJSON.FeatureCollection {
   return { type: "FeatureCollection", features };
 }
 
-function addRouteLineLayers(map: MapLibreMap, route: PuvRoute): void {
+function addRouteLineLayers(
+  map: MapLibreMap,
+  route: PuvRoute,
+  isDimmed: boolean,
+): void {
   const { insideSegments, outsideSegments } = splitLineByCityBoundary(
     route.geojson,
   );
+  const lineProperties = {
+    routeId: route.id,
+    routeName: route.name,
+    vehicleLabel: route.vehicleTypes.join(" / "),
+  };
   const insideSourceId = `${LAYER_PREFIX}${route.id}-inside`;
   const outsideSourceId = `${LAYER_PREFIX}${route.id}-outside`;
 
   map.addSource(insideSourceId, {
     type: "geojson",
-    data: featureCollection(insideSegments),
+    data: featureCollection(
+      insideSegments.map((f) => withProperties(f, lineProperties)),
+    ),
   });
   map.addSource(outsideSourceId, {
     type: "geojson",
-    data: featureCollection(outsideSegments),
+    data: featureCollection(
+      outsideSegments.map((f) => withProperties(f, lineProperties)),
+    ),
   });
 
+  // A wider, low-contrast casing beneath the line keeps overlapping routes
+  // separable as the route count grows — plain color-on-color lines start
+  // to merge visually past a handful of corridors.
   map.addLayer({
-    id: `${insideSourceId}-line`,
+    id: `${insideSourceId}-casing`,
     type: "line",
     source: insideSourceId,
     layout: { "line-join": "round", "line-cap": "round" },
-    paint: { "line-color": route.color, "line-width": 4 },
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": 7,
+      "line-opacity": isDimmed ? 0.15 : 0.7,
+    },
   });
 
   map.addLayer({
-    id: `${outsideSourceId}-line`,
+    id: `${insideSourceId}${ROUTE_LINE_LAYER_SUFFIX}`,
+    type: "line",
+    source: insideSourceId,
+    layout: { "line-join": "round", "line-cap": "round" },
+    paint: {
+      "line-color": route.color,
+      "line-width": 4,
+      "line-opacity": isDimmed ? DIMMED_OPACITY_FACTOR : 1,
+    },
+  });
+
+  map.addLayer({
+    id: `${outsideSourceId}${ROUTE_LINE_LAYER_SUFFIX}`,
     type: "line",
     source: outsideSourceId,
     layout: { "line-join": "round", "line-cap": "round" },
     paint: {
       "line-color": route.color,
       "line-width": 3,
-      "line-opacity": 0.45,
+      "line-opacity": isDimmed ? DIMMED_OPACITY_FACTOR * 0.45 : 0.45,
     },
   });
 }
@@ -104,25 +187,34 @@ function addAlternateRouteLayer(
   map: MapLibreMap,
   route: PuvRoute,
   alternate: AlternateRoute,
+  isDimmed: boolean,
 ): void {
   const sourceId = `${LAYER_PREFIX}${route.id}-alt-${alternate.id}`;
+  const properties = {
+    routeId: route.id,
+    routeName: `${route.name} (alternate: ${alternate.name})`,
+    vehicleLabel: route.vehicleTypes.join(" / "),
+  };
 
-  map.addSource(sourceId, { type: "geojson", data: alternate.geojson });
+  map.addSource(sourceId, {
+    type: "geojson",
+    data: withProperties(alternate.geojson, properties),
+  });
   map.addLayer({
-    id: `${sourceId}-line`,
+    id: `${sourceId}${ROUTE_LINE_LAYER_SUFFIX}`,
     type: "line",
     source: sourceId,
     layout: { "line-join": "round", "line-cap": "round" },
     paint: {
       "line-color": route.color,
       "line-width": 2,
-      "line-opacity": 0.6,
+      "line-opacity": isDimmed ? DIMMED_OPACITY_FACTOR * 0.6 : 0.6,
       "line-dasharray": [2, 2],
     },
   });
 }
 
-function addStopLayer(map: MapLibreMap, route: PuvRoute): void {
+function addStopLayer(map: MapLibreMap, route: PuvRoute, isDimmed: boolean): void {
   const sourceId = `${LAYER_PREFIX}${route.id}-stops`;
   const features: GeoJSON.Feature<GeoJSON.Point>[] = route.stops.map(
     (stop) => ({
@@ -144,6 +236,9 @@ function addStopLayer(map: MapLibreMap, route: PuvRoute): void {
     data: featureCollection(features),
   });
 
+  // White fill + thick route-colored stroke reads against both the raster
+  // OSM basemap and the offline vector style's #f2efe9 background, where a
+  // flat colored dot could wash out.
   // Boolean case conditions must compare explicitly (["==", ..., true])
   // rather than testing property truthiness directly — a stop authored
   // later without one of these fields would otherwise error the expression
@@ -153,7 +248,7 @@ function addStopLayer(map: MapLibreMap, route: PuvRoute): void {
     type: "circle",
     source: sourceId,
     paint: {
-      "circle-color": route.color,
+      "circle-color": "#ffffff",
       "circle-radius": [
         "case",
         ["==", ["get", "shared"], true],
@@ -162,9 +257,15 @@ function addStopLayer(map: MapLibreMap, route: PuvRoute): void {
         6,
         4,
       ],
-      "circle-opacity": ["case", ["==", ["get", "isOutsideCity"], true], 0.45, 1],
-      "circle-stroke-color": "#ffffff",
-      "circle-stroke-width": ["case", ["==", ["get", "shared"], true], 2, 1],
+      "circle-opacity": [
+        "case",
+        ["==", ["get", "isOutsideCity"], true],
+        isDimmed ? DIMMED_OPACITY_FACTOR : 0.45,
+        isDimmed ? DIMMED_OPACITY_FACTOR : 1,
+      ],
+      "circle-stroke-color": route.color,
+      "circle-stroke-width": ["case", ["==", ["get", "shared"], true], 3, 2],
+      "circle-stroke-opacity": isDimmed ? DIMMED_OPACITY_FACTOR : 1,
     },
   });
 }
@@ -172,6 +273,7 @@ function addStopLayer(map: MapLibreMap, route: PuvRoute): void {
 // Removes every layer/source this module previously added, found by the
 // LAYER_PREFIX naming convention — simpler and less error-prone than
 // diffing against whatever the last-synced route/visibility state was.
+// Never touches DARK_OVERLAY_LAYER_ID — that layer is managed separately.
 export function removePuvRouteLayers(map: MapLibreMap): void {
   const style = map.getStyle();
   if (!style) return;
@@ -192,16 +294,40 @@ export function syncPuvRouteLayers(
   map: MapLibreMap,
   routes: PuvRoute[],
   visibleRouteIds: ReadonlySet<string>,
+  selectedRouteId: string | null = null,
 ): void {
   removePuvRouteLayers(map);
 
   routes
     .filter((route) => visibleRouteIds.has(route.id))
     .forEach((route) => {
-      addRouteLineLayers(map, route);
+      const isDimmed = selectedRouteId !== null && selectedRouteId !== route.id;
+      addRouteLineLayers(map, route, isDimmed);
       route.alternateRoutes?.forEach((alternate) =>
-        addAlternateRouteLayer(map, route, alternate),
+        addAlternateRouteLayer(map, route, alternate, isDimmed),
       );
-      addStopLayer(map, route);
+      addStopLayer(map, route, isDimmed);
     });
+}
+
+// Added once per style load, sitting below every route layer added after
+// it. Visibility is the only thing CityMap ever changes on it.
+export function ensureDarkOverlayLayer(map: MapLibreMap): void {
+  if (map.getLayer(DARK_OVERLAY_LAYER_ID)) return;
+
+  map.addLayer({
+    id: DARK_OVERLAY_LAYER_ID,
+    type: "background",
+    paint: { "background-color": "#000000", "background-opacity": 0.35 },
+    layout: { visibility: "none" },
+  });
+}
+
+export function setDarkOverlayVisible(map: MapLibreMap, visible: boolean): void {
+  if (!map.getLayer(DARK_OVERLAY_LAYER_ID)) return;
+  map.setLayoutProperty(
+    DARK_OVERLAY_LAYER_ID,
+    "visibility",
+    visible ? "visible" : "none",
+  );
 }

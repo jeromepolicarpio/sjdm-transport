@@ -1,7 +1,7 @@
 "use client";
 
-import { Map as MapLibreMap, NavigationControl, addProtocol, config } from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
+import { Map as MapLibreMap, Marker, NavigationControl, Popup, addProtocol, config } from "maplibre-gl";
+import type { MapGeoJSONFeature, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PMTiles, Protocol as PMTilesProtocol } from "pmtiles";
 import type { Ref } from "react";
@@ -9,11 +9,26 @@ import { useEffect, useImperativeHandle, useRef } from "react";
 
 import { BundledPMTilesSource } from "@/lib/bundled-pmtiles-source";
 import { cityBoundary, cityBounds } from "@/lib/city-boundary";
+import { syncFareMarker } from "@/lib/fare-markers";
+import {
+  computeFareTripBounds,
+  ensureFareRouteLayer,
+  updateFareRouteLine,
+} from "@/lib/fare-route-layer";
+import type { LngLat } from "@/lib/haversine";
 import { LocateControl } from "@/lib/locate-control";
 import { OFFLINE_STYLE, OFFLINE_PMTILES_URL } from "@/lib/offline-style";
-import { syncPuvRouteLayers } from "@/lib/route-layers";
+import {
+  LAYER_PREFIX,
+  ROUTE_LINE_LAYER_SUFFIX,
+  computeRouteBounds,
+  ensureDarkOverlayLayer,
+  setDarkOverlayVisible,
+  syncPuvRouteLayers,
+} from "@/lib/route-layers";
 import { useNetworkStatus } from "@/lib/use-network-status";
 import type { PuvRoute } from "@/types/puv-route";
+import type { FareField, FarePoint } from "@/types/tricycle";
 
 // The bundler's own module-worker URL resolution for maplibre-gl comes back
 // empty in this project (Next.js + Turbopack/webpack), so GeoJSON/vector
@@ -80,15 +95,57 @@ function addCityBoundaryLayer(map: MapLibreMap) {
 
 export interface CityMapHandle {
   flyTo: (coords: [number, number]) => void;
+  fitToRoute: (routeId: string) => void;
+  setDarkOverlay: (visible: boolean) => void;
+  frameFareTrip: (
+    routeGeometry: GeoJSON.LineString | null,
+    origin: LngLat,
+    destination: LngLat,
+  ) => void;
+  resetView: () => void;
 }
 
 interface CityMapProps {
   ref?: Ref<CityMapHandle>;
   routes: PuvRoute[];
   visibleRouteIds: ReadonlySet<string>;
+  selectedRouteId: string | null;
+  pickingField: FareField | null;
+  onPickPoint: (field: FareField, point: LngLat) => void;
+  fareOrigin: FarePoint | null;
+  fareDestination: FarePoint | null;
+  fareRouteGeometry: GeoJSON.LineString | null;
 }
 
-export function CityMap({ ref, routes, visibleRouteIds }: CityMapProps) {
+function buildRoutePopupContent(routeName: string, vehicleLabel: string): HTMLElement {
+  const container = document.createElement("div");
+  container.className = "text-xs";
+
+  const title = document.createElement("strong");
+  title.textContent = routeName;
+  container.appendChild(title);
+
+  if (vehicleLabel) {
+    const subtitle = document.createElement("div");
+    subtitle.className = "mt-0.5 text-slate-500";
+    subtitle.textContent = vehicleLabel;
+    container.appendChild(subtitle);
+  }
+
+  return container;
+}
+
+export function CityMap({
+  ref,
+  routes,
+  visibleRouteIds,
+  selectedRouteId,
+  pickingField,
+  onPickPoint,
+  fareOrigin,
+  fareDestination,
+  fareRouteGeometry,
+}: CityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const isOnline = useNetworkStatus();
@@ -101,10 +158,37 @@ export function CityMap({ ref, routes, visibleRouteIds }: CityMapProps) {
   // than close over the render's routes/visibleRouteIds.
   const routesRef = useRef(routes);
   const visibleRouteIdsRef = useRef(visibleRouteIds);
+  const selectedRouteIdRef = useRef(selectedRouteId);
+  const pickingFieldRef = useRef(pickingField);
+  const onPickPointRef = useRef(onPickPoint);
+  const darkOverlayRef = useRef(false);
+  const fareOriginRef = useRef(fareOrigin);
+  const fareDestinationRef = useRef(fareDestination);
+  const fareRouteGeometryRef = useRef(fareRouteGeometry);
+  // Marker instances persist across style.load (setStyle wipes GeoJSON
+  // sources/layers, but DOM markers are independent of the style) — held
+  // outside React state since syncFareMarker mutates/reuses them in place.
+  const originMarkerRef = useRef<Marker | null>(null);
+  const destinationMarkerRef = useRef<Marker | null>(null);
   useEffect(() => {
     routesRef.current = routes;
     visibleRouteIdsRef.current = visibleRouteIds;
-  }, [routes, visibleRouteIds]);
+    selectedRouteIdRef.current = selectedRouteId;
+    pickingFieldRef.current = pickingField;
+    onPickPointRef.current = onPickPoint;
+    fareOriginRef.current = fareOrigin;
+    fareDestinationRef.current = fareDestination;
+    fareRouteGeometryRef.current = fareRouteGeometry;
+  }, [
+    routes,
+    visibleRouteIds,
+    selectedRouteId,
+    pickingField,
+    onPickPoint,
+    fareOrigin,
+    fareDestination,
+    fareRouteGeometry,
+  ]);
   // Map.isStyleLoaded() also waits on every visible tile/image, so it stays
   // false well after the style itself is ready to accept layers — a route
   // toggle mid-tile-load would silently no-op against that guard. Track
@@ -115,6 +199,39 @@ export function CityMap({ ref, routes, visibleRouteIds }: CityMapProps) {
   useImperativeHandle(ref, () => ({
     flyTo(coords) {
       mapRef.current?.flyTo({ center: coords, zoom: STOP_FLY_TO_ZOOM });
+    },
+    fitToRoute(routeId) {
+      const map = mapRef.current;
+      const route = routesRef.current.find((r) => r.id === routeId);
+      if (!map || !route) return;
+      map.fitBounds(computeRouteBounds(route), { padding: 48, maxZoom: 16 });
+    },
+    setDarkOverlay(visible) {
+      darkOverlayRef.current = visible;
+      const map = mapRef.current;
+      if (map) setDarkOverlayVisible(map, visible);
+    },
+    frameFareTrip(routeGeometry, origin, destination) {
+      const map = mapRef.current;
+      if (!map) return;
+      // Padding accounts for the desktop sidebar (w-80 = 320px) and the
+      // mobile bottom sheet's collapsed height, so neither pin lands
+      // underneath them. Single fitBounds call — MapLibre already arcs
+      // out-and-back-in on its own for a longer trip, without a separate
+      // staged zoom-out/zoom-in sequence.
+      map.fitBounds(computeFareTripBounds(routeGeometry, origin, destination), {
+        padding: { top: 80, bottom: 140, left: 340, right: 80 },
+        maxZoom: 16,
+        duration: 1200,
+      });
+    },
+    // Deliberate counterpart to frameFareTrip: called when the fare card is
+    // closed and the trip cleared, so the camera animates back out to the
+    // whole-city view instead of being left stranded on a now-empty,
+    // tightly-zoomed neighborhood. Same duration as frameFareTrip so the
+    // zoom-out reads as its inverse.
+    resetView() {
+      mapRef.current?.fitBounds(cityBounds, { padding: 40, duration: 1200 });
     },
   }));
 
@@ -133,6 +250,37 @@ export function CityMap({ ref, routes, visibleRouteIds }: CityMapProps) {
     map.addControl(new LocateControl(), "top-right");
 
     let cancelled = false;
+
+    map.on("click", (e) => {
+      if (pickingFieldRef.current) {
+        onPickPointRef.current(pickingFieldRef.current, {
+          lng: e.lngLat.lng,
+          lat: e.lngLat.lat,
+        });
+        return;
+      }
+
+      const lineLayerIds = (map.getStyle()?.layers ?? [])
+        .filter(
+          (layer) =>
+            layer.id.startsWith(LAYER_PREFIX) &&
+            layer.id.endsWith(ROUTE_LINE_LAYER_SUFFIX),
+        )
+        .map((layer) => layer.id);
+      if (lineLayerIds.length === 0) return;
+
+      const features: MapGeoJSONFeature[] = map.queryRenderedFeatures(e.point, {
+        layers: lineLayerIds,
+      });
+      const routeName = features[0]?.properties?.routeName as string | undefined;
+      if (!routeName) return;
+
+      const vehicleLabel = (features[0]?.properties?.vehicleLabel as string) ?? "";
+      new Popup({ closeButton: true })
+        .setLngLat(e.lngLat)
+        .setDOMContent(buildRoutePopupContent(routeName, vehicleLabel))
+        .addTo(map);
+    });
 
     // maxBounds alone only stops panning past the box; without a minZoom
     // floor the user can still zoom out until the whole city (and beyond)
@@ -155,7 +303,21 @@ export function CityMap({ ref, routes, visibleRouteIds }: CityMapProps) {
       if (cancelled) return;
       isStyleReadyRef.current = true;
       addCityBoundaryLayer(map);
-      syncPuvRouteLayers(map, routesRef.current, visibleRouteIdsRef.current);
+      ensureDarkOverlayLayer(map);
+      syncPuvRouteLayers(
+        map,
+        routesRef.current,
+        visibleRouteIdsRef.current,
+        selectedRouteIdRef.current,
+      );
+      setDarkOverlayVisible(map, darkOverlayRef.current);
+      ensureFareRouteLayer(map);
+      updateFareRouteLine(
+        map,
+        fareOriginRef.current?.coords ?? null,
+        fareDestinationRef.current?.coords ?? null,
+        fareRouteGeometryRef.current,
+      );
     });
 
     mapRef.current = map;
@@ -179,8 +341,60 @@ export function CityMap({ ref, routes, visibleRouteIds }: CityMapProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isStyleReadyRef.current) return;
-    syncPuvRouteLayers(map, routes, visibleRouteIds);
-  }, [routes, visibleRouteIds]);
+    syncPuvRouteLayers(map, routes, visibleRouteIds, selectedRouteId);
+  }, [routes, visibleRouteIds, selectedRouteId]);
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    originMarkerRef.current = syncFareMarker(
+      map,
+      originMarkerRef.current,
+      fareOrigin,
+      "origin",
+    );
+    destinationMarkerRef.current = syncFareMarker(
+      map,
+      destinationMarkerRef.current,
+      fareDestination,
+      "destination",
+    );
+  }, [fareOrigin, fareDestination]);
+
+  // Markers are independent of map style/lifecycle beyond the map instance
+  // itself, so they need their own teardown on unmount (map.remove() doesn't
+  // reach into externally-created Markers). Nulling the refs (not just
+  // removing the markers) matters: React Strict Mode mounts/unmounts/
+  // remounts this component in dev, and without nulling, syncFareMarker
+  // would see a stale-but-non-null `existing` marker on the remount and
+  // reuse it — moving/relabeling a marker that was never added to the new
+  // map instance, so the pin would silently never appear. (syncFareMarker
+  // also guards against this directly via existing.getElement().isConnected,
+  // but nulling here is the actual fix — the guard is defense in depth.)
+  useEffect(() => {
+    return () => {
+      originMarkerRef.current?.remove();
+      originMarkerRef.current = null;
+      destinationMarkerRef.current?.remove();
+      destinationMarkerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isStyleReadyRef.current) return;
+    updateFareRouteLine(
+      map,
+      fareOrigin?.coords ?? null,
+      fareDestination?.coords ?? null,
+      fareRouteGeometry,
+    );
+  }, [fareOrigin, fareDestination, fareRouteGeometry]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`h-full w-full ${pickingField ? "cursor-crosshair" : ""}`}
+    />
+  );
 }

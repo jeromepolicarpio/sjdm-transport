@@ -1,13 +1,5 @@
-import { FarePendingBanner } from "@/components/FarePendingBanner";
-import { MapShell } from "@/components/MapShell";
-import { OfflineBanner } from "@/components/OfflineBanner";
+import { AppShell } from "@/components/AppShell";
 
 export default function Home() {
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <FarePendingBanner />
-      <OfflineBanner />
-      <MapShell />
-    </div>
-  );
+  return <AppShell />;
 }

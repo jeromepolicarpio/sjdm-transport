@@ -28,8 +28,8 @@ Nothing is built yet — this is the intended stack.
 - Next.js (App Router) + TypeScript strict mode, configured with `output: 'export'` **from the first commit** (see §5)
 - Tailwind CSS
 - MapLibre GL JS for maps
-- OSRM public demo server for routing
-- Nominatim for geocoding / reverse geocoding
+- OSRM public demo server for routing (road distance/geometry, and `/nearest` for snapping a tapped point to the nearest road)
+- Photon (photon.komoot.io), **not Nominatim**, for reverse geocoding — verified Nominatim sends no `Access-Control-Allow-Origin` header, so it's CORS-blocked from a browser `fetch`, and this app is a static export (`output: "export"`) with no API route to proxy through. Photon is OSM-based, CORS-open, and returns SJDM barangay-level names.
 - OpenStreetMap raster tiles (PMTiles for offline, see §6)
 - Capacitor for the Android shell
 - Deployed on Vercel
@@ -42,33 +42,31 @@ All external APIs are free, public, and unauthenticated. No environment variable
 
 GenSan uses a single citywide distance formula (flat base fare for the first N km, then a per-km rate). That is simple to code.
 
-**SJDM does not work that way.** SJDM tricycles operate under a TODA zone system. Fares are governed by City Ordinance No. 2022-107-06 ("Standardized Public Utility Tricycle Fare"), and TODAs are assigned to numbered zones — City Ordinance No. 2023-030-02 recognizes FRAHTODA to ply under Zone 5 alongside BM TODA, which confirms both that zones are numbered and that multiple TODAs share a zone.
+**Status update:** an earlier version of this document (and this section) assumed SJDM tricycle fares were a **zone-pair lookup** — resolve origin/destination to numbered TODA zones, look up the fare for that pair — based on City Ordinance No. 2023-030-02 assigning TODAs to numbered zones. That zone list / barangay coverage / TODA masterlist is **still** unreceived from CSJDM TRU.
 
-So the fare model is a **zone-pair lookup**, not a distance formula:
+But the actual fare matrix under City Ordinance No. 2022-107-06 (obtained — see `public/fare-matrix-2022.jpg`, transcribed into `src/data/fare-schedule.ts`) turned out to be something else entirely: a **gasoline-price-tiered, distance/passenger-count schedule**, with no zones anywhere in it. It applies citywide, not per zone pair. So the fare model actually implemented (`src/lib/fare-lookup.ts`) is:
 
-1. Resolve origin coordinates to a zone
-2. Resolve destination coordinates to a zone
-3. Look up the fare for that zone pair (or the intra-zone rate if same zone)
-4. If the trip crosses zones in a way no TODA serves, surface it as a special trip / negotiated fare rather than showing a number
+1. Pick the fare-schedule row for the prevailing gasoline price bracket (₱30–50 / 51–70 / 71–90 / 91–110)
+2. **Regular trip** (hailed anywhere): first-2km base fare + a flat per-km rate for the OSRM road distance beyond that
+3. **Special trip** (exclusive/chartered, to/from a TODA terminal): a flat rate from the schedule, not distance-based
+4. Senior/PWD/student get the ordinance's own flat 20%-off figures for each — not a computed 20%, since the published numbers don't reduce cleanly to that (see the comment in `fare-schedule.ts`)
 
-OSRM distance is still computed, but it is used for ETA and as a sanity check — **it is not the source of the fare.**
+OSRM (`src/lib/osrm.ts`) supplies the road-network distance and the drawn route geometry — it genuinely is part of the fare basis for regular trips now, not just a sanity check as previously written here. If OSRM is unreachable, `fare-lookup.ts` falls back to straight-line (haversine) distance and flags it via `distanceSource`.
+
+The zone/TODA masterlist request to CSJDM TRU is still open — if it ever arrives, it would layer *on top* of this (e.g. confirming which TODA serves a given point), not replace it.
 
 ### DO NOT INVENT FARE NUMBERS
 
-This is the single most important instruction in this document.
+This is still the single most important instruction in this document — it just now applies to a schedule that exists rather than one that's missing.
 
-The actual fare matrix has not been obtained yet. A data request was emailed to the CSJDM Tricycle Regulatory Unit (csjdmtru@gmail.com, tru_csjdm@gmail.com) requesting the ordinance text, the fare matrix annex, the zone list with barangay coverage, and the TODA masterlist. **No reply yet.**
+Every figure in `fare-schedule.ts` is transcribed verbatim from the published matrix image. There is no reply yet from CSJDM TRU on whether a newer matrix supersedes the 2022 one (CSJDM held a Tricycle Code seminar for TODA Federation officers in November 2025, so it may have been superseded) — the UI discloses this as "may be outdated" rather than presenting the figure as current fact. Do not:
 
-Until that data arrives:
+- Derive a figure (e.g. an exact 20%) when the ordinance gives a different flat number for that same case
+- Scrape fare numbers from blogs, Facebook posts, or forums
+- Interpolate from other cities' ordinances
+- Fill in zone data from guesses if the zone/TODA masterlist ever partially arrives — an incomplete real dataset is fine; a completed-by-guessing one is not
 
-- Do not generate placeholder fare values that look plausible
-- Do not scrape fare numbers from blogs, Facebook posts, or forums
-- Do not interpolate from other cities' ordinances
-- Use obviously-fake sentinel values (e.g. `-1`) or empty objects in the data files, and make the UI render a clear "fare data pending" state
-
-Publishing a wrong fare to a real commuter is the worst possible failure mode for this app. Someone gets overcharged, or a driver gets falsely accused. An empty state is always better than a guessed number.
-
-There may also be a newer ordinance — CSJDM held a Tricycle Code seminar for TODA Federation officers in November 2025, so 2022-107-06 may have been superseded. Confirm before hardcoding anything.
+Publishing a wrong fare to a real commuter is the worst possible failure mode for this app. Someone gets overcharged, or a driver gets falsely accused.
 
 ---
 
@@ -220,47 +218,37 @@ Work that doesn't depend on the TRU reply comes first. See [`PROGRESS.md`](./PRO
 
 ## 9. Data shapes
 
-Adapt from the reference architecture, with the zone system added:
+Superseded by what's actually implemented (see §3's status update) — the zone/TODA shapes below were the pre-data plan and were never built; deleted from the codebase (`src/data/todas.ts`, the `Toda`/`TricycleZone`/`FareEntry` types) rather than left as dead code. The real shapes, matching `src/types/tricycle.ts` and `src/lib/fare-lookup.ts`:
 
 ```typescript
 type PassengerType = 'regular' | 'discounted'  // discounted: senior, PWD, student
+type GasolinePriceBracket = '30-50' | '51-70' | '71-90' | '91-110'
+type TripType = 'regular' | 'special'
+type DistanceSource = 'road' | 'straight_line'  // 'straight_line' = offline or OSRM unreachable; FarePanel gives this its own warning state, not a footnote
 
-interface TricycleZone {
-  id: string
-  number: number
-  name: string
-  barangays: string[]
-  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
-  todas: string[]        // TODA ids operating in this zone
-}
-
-interface Toda {
-  id: string
-  name: string
-  abbreviation: string
-  zoneId: string
-}
-
-interface FareEntry {
-  originZoneId: string
-  destinationZoneId: string
-  regularFare: number
-  discountedFare: number
-  isSpecialTrip: boolean   // true when no TODA serves this pair at matrix rates
+interface FareScheduleEntry {
+  bracket: GasolinePriceBracket
+  firstTwoKmFare: number
+  succeedingKmFarePerPassenger: number
+  specialTripOnePassengerFare: number
+  discountedRegularTripFare: number    // ordinance's own flat figure, NOT firstTwoKmFare * 0.8
+  discountedSpecialTripFare: number    // same — see fare-schedule.ts's warning comment
+  // ...plus a few more fields transcribed for a complete record but not
+  // read by the calculator yet (specialTripTwoPassengersFareEach, etc.)
 }
 
 interface FareResult {
-  status: 'ok' | 'special_trip' | 'out_of_coverage' | 'data_pending'
-  regularFare: number | null
-  discountedFare: number | null
-  originZone: TricycleZone | null
-  destinationZone: TricycleZone | null
-  distanceKm: number       // from OSRM — informational only, NOT the fare basis
+  fare: number                              // always resolves — see distanceSource for confidence
+  distanceKm: number
+  distanceSource: DistanceSource
+  routeGeometry: GeoJSON.LineString | null  // OSRM road path, for drawing the trip; null when distanceSource is 'straight_line'
+  bracket: GasolinePriceBracket
+  tripType: TripType
   ordinanceReference: string
 }
 ```
 
-Note the `status` union — the calculator must be able to say "I don't know" rather than always returning a number. That's the whole point.
+There is no `status: 'data_pending'` branch anymore — the fare schedule was obtained (`public/fare-matrix-2022.jpg`) and the calculator always resolves a number. What replaced "say I don't know" is `distanceSource`: a `'straight_line'` result is real fare math on a worse (shorter) distance estimate, surfaced to the passenger as a warning rather than hidden behind a plain footnote.
 
 PUV routes — note there are **no fare fields on any of these types**, by design (§3b):
 
