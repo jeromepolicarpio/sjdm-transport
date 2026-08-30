@@ -39,7 +39,7 @@ export function FarePointRow({
       <button
         type="button"
         onClick={onToggleMenu}
-        aria-haspopup="listbox"
+        aria-haspopup="true"
         aria-expanded={isMenuOpen}
         aria-label={point ? `Change ${placeholder.replace("…", "")}` : `Choose ${placeholder.replace("…", "")}`}
         className="flex min-w-0 flex-1 items-center gap-1.5 rounded-full px-2 py-2 text-left"
@@ -68,7 +68,7 @@ export function FarePointRow({
           onClick={onClear}
           title="Clear"
           aria-label="Clear"
-          className="flex shrink-0 items-center justify-center rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
         >
           <X size={14} aria-hidden />
         </button>

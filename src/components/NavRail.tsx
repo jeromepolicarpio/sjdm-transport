@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 
 import { TrikeIcon } from "@/components/TrikeIcon";
+import { TAB_LABELS } from "@/types/app-tab";
 import type { AppTab } from "@/types/app-tab";
 
 interface NavRailProps {
@@ -14,10 +15,7 @@ interface NavRailProps {
   onOpenAbout: () => void;
 }
 
-const TABS: { id: AppTab; label: string }[] = [
-  { id: "fare", label: "Trike Fare" },
-  { id: "routes", label: "Bus" },
-];
+const TABS: AppTab[] = ["fare", "routes"];
 
 function RailTile({
   isActive,
@@ -60,10 +58,10 @@ export function NavRail({ activeTab, onTabChange, onViewFareMatrix, onOpenAbout 
       </div>
 
       <div className="flex flex-col gap-1 p-2" role="tablist" aria-label="Sections">
-        {TABS.map(({ id, label }) => {
+        {TABS.map((id) => {
           const isActive = activeTab === id;
           return (
-            <RailTile key={id} isActive={isActive} onClick={() => onTabChange(id)} label={label}>
+            <RailTile key={id} isActive={isActive} onClick={() => onTabChange(id)} label={TAB_LABELS[id]}>
               {id === "fare" ? (
                 <TrikeIcon
                   className={`h-[22px] w-[22px] shrink-0 ${isActive ? "bg-blue-700" : "bg-slate-500"}`}

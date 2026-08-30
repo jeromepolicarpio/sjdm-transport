@@ -35,7 +35,7 @@ export function FareResultCard({ onClose, ref, ...contentProps }: FareResultCard
           type="button"
           onClick={onClose}
           aria-label="Close fare estimate"
-          className="flex items-center justify-center rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="flex h-10 w-10 items-center justify-center rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
         >
           <X size={16} aria-hidden />
         </button>

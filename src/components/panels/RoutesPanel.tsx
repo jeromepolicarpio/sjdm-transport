@@ -84,12 +84,17 @@ export function RoutesPanel({
             }`}
           >
             <div className="flex items-center gap-2 pt-1">
-              <input
-                type="checkbox"
-                checked={isVisible}
-                onChange={() => onToggleRoute(route.id)}
-                aria-label={`Show ${route.name} on the map`}
-              />
+              {/* The checkbox itself stays default-sized (visual weight is
+                  intentionally light here) — the label padding is what
+                  brings the actual tap target up toward a usable size. */}
+              <label className="flex h-10 w-10 shrink-0 items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={isVisible}
+                  onChange={() => onToggleRoute(route.id)}
+                  aria-label={`Show ${route.name} on the map`}
+                />
+              </label>
               <span
                 className="h-3 w-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: route.color }}
@@ -104,6 +109,7 @@ export function RoutesPanel({
                 }}
                 aria-expanded={isExpanded}
                 aria-pressed={isSelected}
+                aria-label={`${route.name} — show stops and highlight on map`}
                 className="flex-1 text-left font-medium text-slate-800 dark:text-slate-100"
               >
                 {route.name}
@@ -118,33 +124,38 @@ export function RoutesPanel({
                   }
                   aria-expanded={contributorPopoverId === route.id}
                   aria-label={`Source info for ${route.name}`}
-                  className="shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 >
                   <Info size={14} aria-hidden />
                 </button>
               )}
             </div>
 
+            {/* ml-[62px]: aligns to where the route name starts — the
+                40px checkbox tap-target box + gap-2 + the color bar + gap-2
+                that precede it in the row above (was ml-6, matching the
+                checkbox's old ~16px native size; that offset is stale now
+                that the checkbox sits in a 40px target). */}
             {contributorPopoverId === route.id && route.contributor && (
-              <p className="ml-6 mt-1 rounded bg-slate-50 p-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <p className="ml-[62px] mt-1 rounded bg-slate-50 p-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 {route.contributor}
               </p>
             )}
 
-            <div className="ml-6 mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="ml-[62px] mt-1 text-xs text-slate-500 dark:text-slate-400">
               {route.vehicleTypes.map((type) => VEHICLE_LABELS[type]).join(" / ")}
               {" · "}
               <StalenessNote verifiedOn={route.verifiedOn} />
             </div>
 
             {isExpanded && (
-              <ul className="ml-6 mt-2 space-y-1">
+              <ul className="ml-[62px] mt-2 space-y-1">
                 {route.stops.map((stop) => (
                   <li key={stop.id}>
                     <button
                       type="button"
                       onClick={() => onStopSelect(stop)}
-                      className={`flex items-center gap-1 text-left text-xs ${
+                      className={`flex min-h-10 items-center gap-1 text-left text-xs ${
                         stop.isOutsideCity
                           ? "text-slate-400 dark:text-slate-500"
                           : "text-slate-700 dark:text-slate-200"

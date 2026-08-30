@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Loader2, MapPin, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, Loader2, MapPin, ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 import { formatCoords } from "@/lib/format-coords";
@@ -75,7 +75,11 @@ export function FareResultContent({
   isCalculating,
   onViewFareMatrix,
 }: FareResultContentProps) {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // Defaults open: gas price and trip type both change the fare formula
+  // outright (flat vs. metered), so they shouldn't require an extra tap to
+  // even discover they exist. Still collapsible for anyone who wants the
+  // shorter view once they've picked their settings once.
+  const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const isEstimate = result?.distanceSource === "straight_line";
 
   return (
@@ -101,6 +105,12 @@ export function FareResultContent({
           </button>
         ))}
       </div>
+      {/* "senior, PWD, student" is the ordinance's own eligibility list —
+          see PassengerType in src/types/tricycle.ts — not this component
+          inventing a definition. */}
+      <p className="px-3 pt-1 text-xs text-slate-500">
+        Discounted rate: senior citizen, PWD, or student (valid ID required).
+      </p>
 
       <div className="px-3 pt-2.5">
         {isCalculating && (
@@ -114,7 +124,7 @@ export function FareResultContent({
             {result.tripType === "regular" && (
               <div className="flex items-center justify-between px-3 py-1.5 text-sm">
                 <span className="text-slate-500">Road Distance</span>
-                <span className="font-medium text-slate-800">
+                <span className="font-medium tabular-nums text-slate-800">
                   {result.distanceKm.toFixed(2)} km
                 </span>
               </div>
@@ -122,7 +132,7 @@ export function FareResultContent({
             <div className="px-3 py-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500">Estimated Fare</span>
-                <span className="text-lg font-semibold text-blue-700">
+                <span className="text-lg font-semibold tabular-nums text-blue-700">
                   ₱{result.fare.toFixed(2)}
                 </span>
               </div>
@@ -157,11 +167,11 @@ export function FareResultContent({
           <span>
             Gas price {BRACKET_LABEL[bracket]} · {tripType === "regular" ? "Regular" : "Special"} trip
           </span>
-          {isSettingsOpen ? (
-            <ChevronUp size={14} className="shrink-0" aria-hidden />
-          ) : (
-            <ChevronDown size={14} className="shrink-0" aria-hidden />
-          )}
+          <ChevronDown
+            size={14}
+            className={`shrink-0 transition-transform duration-150 ${isSettingsOpen ? "rotate-180" : ""}`}
+            aria-hidden
+          />
         </button>
 
         {isSettingsOpen && (
@@ -197,10 +207,13 @@ export function FareResultContent({
             <fieldset>
               <legend className="mb-1 text-xs font-medium text-slate-500">Trip type</legend>
               <div className="grid grid-cols-2 gap-1">
+                {/* Hint shown as always-visible text, not a `title` tooltip —
+                    this app ships as a touchscreen APK with no hover, so a
+                    tooltip-only explanation of a fare-affecting choice would
+                    be undiscoverable there. */}
                 {TRIP_TYPES.map(({ value, label, hint }) => (
                   <label
                     key={value}
-                    title={hint}
                     className={`cursor-pointer rounded-md border px-2 py-1.5 text-center text-xs font-medium ${
                       tripType === value
                         ? "border-blue-600 bg-blue-50 text-blue-700"
@@ -216,6 +229,9 @@ export function FareResultContent({
                       className="sr-only"
                     />
                     {label}
+                    <span className="mt-0.5 block text-[10px] font-normal normal-case leading-tight opacity-80">
+                      {hint}
+                    </span>
                   </label>
                 ))}
               </div>

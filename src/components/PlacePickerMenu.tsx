@@ -27,6 +27,11 @@ interface PlacePickerMenuProps {
 
 const SEARCH_DEBOUNCE_MS = 350;
 
+// Plain buttons, not role="option" inside role="listbox" — that ARIA
+// pattern requires arrow-key roving focus and aria-activedescendant to
+// behave correctly, which this menu (tab-stop buttons) doesn't implement.
+// A half-built listbox announces semantics screen readers can't actually
+// use, which is worse than none — see the heuristic audit, 2026-08-30.
 function MenuOption({
   onClick,
   children,
@@ -37,8 +42,6 @@ function MenuOption({
   return (
     <button
       type="button"
-      role="option"
-      aria-selected={false}
       onClick={onClick}
       className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-slate-50"
     >
@@ -110,9 +113,9 @@ export function PlacePickerMenu({
   return (
     <div
       ref={dismissRef}
-      role="listbox"
+      role="group"
       aria-label={field === "origin" ? "Choose starting point" : "Choose destination"}
-      className={`${className} max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg`}
+      className={`${className} max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg transition-[opacity,transform] duration-150 ease-out starting:-translate-y-1 starting:opacity-0`}
     >
       <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
         <Search size={15} className="shrink-0 text-slate-400" aria-hidden />

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { QuickLinks } from "@/components/QuickLinks";
 import { TrikeIcon } from "@/components/TrikeIcon";
+import { TAB_LABELS } from "@/types/app-tab";
 import type { AppTab } from "@/types/app-tab";
 
 interface MenuDrawerProps {
@@ -16,10 +17,7 @@ interface MenuDrawerProps {
   onOpenAbout: () => void;
 }
 
-const NAV_ITEMS: { id: AppTab; label: string }[] = [
-  { id: "fare", label: "Trike Fare" },
-  { id: "routes", label: "Bus/Jeep Routes" },
-];
+const NAV_ITEMS: AppTab[] = ["fare", "routes"];
 
 // Slide-in nav — replaces the old always-visible NavRail. Modeled on GenSan
 // Transport's hamburger menu: tab switcher up top, "About" and the fare
@@ -46,28 +44,32 @@ export function MenuDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+      {/* active:scale-100 overrides the global button press-scale (see
+          globals.css) — this backdrop covers the full viewport, so shrinking
+          it by 4% on press would flash an unscrimmed edge around the
+          screen. */}
       <button
         type="button"
         aria-label="Close menu"
         onClick={onClose}
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/40 transition-opacity duration-200 starting:opacity-0 active:scale-100"
       />
 
-      <div className="relative flex h-full w-72 max-w-[80vw] flex-col bg-white shadow-xl">
+      <div className="relative flex h-full w-72 max-w-[80vw] flex-col bg-white shadow-xl transition-transform duration-200 ease-out starting:translate-x-full">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <span className="text-base font-semibold text-slate-800">Menu</span>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close menu"
-            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="flex h-10 w-10 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             <X size={18} aria-hidden />
           </button>
         </div>
 
         <nav className="flex flex-col p-2" aria-label="Sections">
-          {NAV_ITEMS.map(({ id, label }) => {
+          {NAV_ITEMS.map((id) => {
             const isActive = activeTab === id;
             return (
               <button
@@ -87,7 +89,7 @@ export function MenuDrawer({
                 ) : (
                   <Bus size={20} className="shrink-0" aria-hidden />
                 )}
-                <span className="flex-1">{label}</span>
+                <span className="flex-1">{TAB_LABELS[id]}</span>
                 {isActive && <Check size={16} className="shrink-0" aria-hidden />}
               </button>
             );

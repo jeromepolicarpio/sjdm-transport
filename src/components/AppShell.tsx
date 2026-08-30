@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { AboutModal } from "@/components/AboutModal";
@@ -24,6 +24,7 @@ import type { LngLat } from "@/lib/haversine";
 import { pendingFarePoint, resolveFarePoint } from "@/lib/resolve-fare-point";
 import { useNetworkStatus } from "@/lib/use-network-status";
 import { puvRoutes } from "@/data/puv-routes";
+import { TAB_LABELS } from "@/types/app-tab";
 import type { AppTab } from "@/types/app-tab";
 import type { RouteStop } from "@/types/puv-route";
 import type {
@@ -39,11 +40,6 @@ import type {
 // every render while the Trike Fare tab is active (it hides bus/jeep routes
 // there — they're a different feature and would clutter the fare picker).
 const EMPTY_ROUTE_IDS: ReadonlySet<string> = new Set();
-
-const TAB_TITLES: Record<AppTab, string> = {
-  fare: "Trike Fare Calculator",
-  routes: "Bus/Jeep Route Explorer",
-};
 
 export function AppShell() {
   const mapRef = useRef<CityMapHandle>(null);
@@ -461,12 +457,12 @@ export function AppShell() {
                   onClick={() => setIsMobileSheetExpanded((expanded) => !expanded)}
                   className="flex items-center justify-between border-b border-slate-200 px-3 pb-2 text-sm font-semibold text-slate-800"
                 >
-                  {TAB_TITLES[activeTab]}
-                  {isMobileSheetExpanded ? (
-                    <ChevronDown size={16} aria-hidden />
-                  ) : (
-                    <ChevronUp size={16} aria-hidden />
-                  )}
+                  {TAB_LABELS[activeTab]}
+                  <ChevronUp
+                    size={16}
+                    className={`transition-transform duration-150 ${isMobileSheetExpanded ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
                 </button>
                 <div className="min-h-0 flex-1 overflow-y-auto">{renderPanel()}</div>
                 {isMobileSheetExpanded && <DisclaimerCard />}

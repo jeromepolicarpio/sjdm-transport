@@ -38,11 +38,11 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
       role="dialog"
       aria-modal="true"
       aria-label="About SJDM Transport"
-      className="fixed inset-0 z-50 flex flex-col bg-black/40"
+      className="fixed inset-0 z-50 flex flex-col bg-black/40 transition-opacity duration-200 starting:opacity-0"
       onClick={onClose}
     >
       <div
-        className="mx-auto mt-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-t-xl bg-white shadow-xl md:my-auto md:rounded-xl"
+        className="mx-auto mt-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-t-xl bg-white shadow-xl transition-transform duration-200 ease-out starting:translate-y-4 md:my-auto md:rounded-xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
@@ -51,7 +51,7 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="flex h-10 w-10 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             <X size={18} aria-hidden />
           </button>
