@@ -182,6 +182,28 @@ export function FareMatrixModal({ open, onClose }: FareMatrixModalProps) {
                 ))}
               </tbody>
             </table>
+
+            {/* Notes (ii) and (iv) from the scanned matrix, selected because
+                they scope the flat special-trip rate: (ii) it only applies
+                when boarding at the terminal, and (iv) it only applies
+                inside the TODA's zone of operation. Not a transcription of
+                every note on the page (i, iii, v are omitted) — the caption
+                below says so and points back to the scanned page for those. */}
+            <p className="mt-4 text-xs font-medium text-slate-500">
+              Selected notes from the matrix — see the scanned page for the
+              full text
+            </p>
+            <ul className="mt-1.5 list-disc space-y-1 pl-5 text-xs text-slate-600">
+              <li>
+                Pick-up of passengers not at the tricycle terminal (&ldquo;dampot o
+                pulot&rdquo; na pasahero) must be charged the regular minimum fare,
+                not the special-trip rate.
+              </li>
+              <li>
+                All destinations outside the zone depend on agreement between
+                the driver and passenger.
+              </li>
+            </ul>
           </div>
         </div>
       ) : (

@@ -1,4 +1,4 @@
-import { fareSchedule } from "@/data/fare-schedule";
+import { fareSchedule, SPECIAL_TRIP_IN_ZONE_MAX_KM } from "@/data/fare-schedule";
 import type {
   DistanceSource,
   FareResult,
@@ -44,7 +44,12 @@ function regularTripFare(
 }
 
 // Special trip: flat, exclusive/chartered rate to or from a TODA terminal —
-// not distance-based per the ordinance.
+// not distance-based per the ordinance. But it only applies inside "each
+// designated zone of operation" (the matrix's own scope); note (iv) leaves
+// destinations outside the zone to agreement between driver and passenger —
+// the ordinance does not say this figure is a floor for those trips, only
+// that it stops applying. Callers must not present this figure as
+// authoritative for long trips — see isLikelyOutsideZone on FareResult.
 function specialTripFare(
   entry: FareScheduleEntry,
   passengerType: PassengerType,
@@ -109,6 +114,9 @@ export async function calculateFare(
       ? specialTripFare(entry, passengerType)
       : regularTripFare(entry, distanceKm, passengerType);
 
+  const isLikelyOutsideZone =
+    tripType === "special" && distanceKm > SPECIAL_TRIP_IN_ZONE_MAX_KM;
+
   return {
     fare: Math.round(fare * 100) / 100,
     distanceKm,
@@ -117,5 +125,6 @@ export async function calculateFare(
     bracket,
     tripType,
     ordinanceReference: ORDINANCE_REFERENCE,
+    isLikelyOutsideZone,
   };
 }

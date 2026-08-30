@@ -35,7 +35,11 @@ const GASOLINE_BRACKETS: { value: GasolinePriceBracket; label: string }[] = [
 
 const TRIP_TYPES: { value: TripType; label: string; hint: string }[] = [
   { value: "regular", label: "Regular", hint: "Hailed anywhere, metered by distance" },
-  { value: "special", label: "Special", hint: "Exclusive/chartered, to or from a terminal" },
+  {
+    value: "special",
+    label: "Special",
+    hint: "Exclusive/chartered from a TODA terminal. Not for street pick-ups.",
+  },
 ];
 
 const BRACKET_LABEL: Record<GasolinePriceBracket, string> = Object.fromEntries(
@@ -121,9 +125,11 @@ export function FareResultContent({
 
         {result && (
           <div className="divide-y divide-slate-100 rounded-md border border-slate-200">
-            {result.tripType === "regular" && (
+            {(result.tripType === "regular" || result.isLikelyOutsideZone) && (
               <div className="flex items-center justify-between px-3 py-1.5 text-sm">
-                <span className="text-slate-500">Road Distance</span>
+                <span className="text-slate-500">
+                  {result.tripType === "regular" ? "Road Distance" : "Distance"}
+                </span>
                 <span className="font-medium tabular-nums text-slate-800">
                   {result.distanceKm.toFixed(2)} km
                 </span>
@@ -139,7 +145,9 @@ export function FareResultContent({
               <p className="mt-0.5 text-xs text-slate-500">
                 {result.tripType === "regular"
                   ? "Metered by distance."
-                  : "Flat special-trip rate."}{" "}
+                  : result.isLikelyOutsideZone
+                    ? "Flat in-zone rate — see note below."
+                    : "Flat special-trip rate."}{" "}
                 Legal basis: {result.ordinanceReference}
               </p>
             </div>
@@ -147,12 +155,25 @@ export function FareResultContent({
         )}
       </div>
 
-      {isEstimate && (
+      {isEstimate && result?.tripType === "regular" && (
         <div className="mx-3 mt-2.5 flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
           <span>
             Estimate only — routing server unreachable, so this straight-line
             distance is likely lower than the real fare.
+          </span>
+        </div>
+      )}
+
+      {result?.isLikelyOutsideZone && (
+        <div className="mx-3 mt-2.5 flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            ₱{result.fare.toFixed(2)} is the flat rate for special trips
+            inside the TODA&apos;s zone of operation. This trip is{" "}
+            {result.distanceKm.toFixed(2)} km, likely outside it — the
+            ordinance leaves fares beyond the zone to agreement between
+            driver and passenger. Expect to negotiate.
           </span>
         </div>
       )}

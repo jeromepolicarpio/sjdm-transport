@@ -80,4 +80,19 @@ export interface FareResult {
   bracket: GasolinePriceBracket;
   tripType: TripType;
   ordinanceReference: string;
+  /**
+   * True when tripType is "special" and the trip distance exceeds
+   * SPECIAL_TRIP_IN_ZONE_MAX_KM — i.e. the destination is probably outside
+   * the TODA's zone of operation, where ordinance note (iv) leaves the fare
+   * to agreement between driver and passenger rather than the flat `fare`
+   * figure. Always false for regular trips, which are metered and
+   * unaffected.
+   *
+   * False-negative prone when distanceSource is "straight_line": haversine
+   * distance is always shorter than the real road distance, so a trip that
+   * is actually past the threshold can compute under it and go unflagged.
+   * There is no equivalent false-positive risk — a "road" distance is never
+   * an overestimate for a real route.
+   */
+  isLikelyOutsideZone: boolean;
 }

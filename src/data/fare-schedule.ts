@@ -60,3 +60,14 @@ export const fareSchedule: FareScheduleEntry[] = [
     discountedSpecialTripFare: 31.0,
   },
 ];
+
+// NOT an ordinance figure — do not treat this alongside the transcribed
+// numbers above. The ordinance scopes the flat special-trip rate to a TODA's
+// "designated zone of operation" but publishes no zone boundaries, and the
+// CSJDM TRU zone masterlist is still unreceived (docs/HANDOFF.md §3). This is
+// the app's own conservative guess at how long a special trip can run before
+// it has probably left that zone, used ONLY to decide whether to warn the
+// user that ordinance note (iv) — "All destination outside the Zone, depends
+// between the agreement of the Drivers and passengers" — probably applies.
+// Delete this and check the real boundary if the zone data ever arrives.
+export const SPECIAL_TRIP_IN_ZONE_MAX_KM = 3;
