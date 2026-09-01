@@ -32,8 +32,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/sjdm-transport-logo.png",
-        width: 1243,
-        height: 1266,
+        width: 512,
+        height: 512,
         alt: SITE_NAME,
       },
     ],
@@ -79,8 +79,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           attributes (data-gr-ext-installed, etc.) into <body> before React
           hydrates, which otherwise logs a false-positive mismatch warning —
           this only suppresses the attribute-diff warning on this element,
-          not hydration errors from this app's own code. */}
-      <body className="h-full flex flex-col" suppressHydrationWarning>
+          not hydration errors from this app's own code.
+
+          Deliberately NOT h-full/flex-col here: this body is shared by the
+          fixed-viewport map tool (AppShell, which now sizes itself via its
+          own `fixed inset-0` instead of inheriting height from this
+          ancestor chain) and the landing page, which needs to be a normal
+          scrolling document. Constraining body to 100dvh used to clamp the
+          landing page's content box to one viewport tall — overflow was
+          still visible, but position:sticky's containing block was that
+          clamped box, so the nav unstuck itself past the first screen. */}
+      <body suppressHydrationWarning>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

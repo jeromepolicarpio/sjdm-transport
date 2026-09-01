@@ -11,7 +11,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${SITE_URL}/privacy`,
+      url: `${SITE_URL}/app/`,
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+    {
+      url: `${SITE_URL}/privacy/`,
       changeFrequency: "yearly",
       priority: 0.3,
     },

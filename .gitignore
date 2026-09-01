@@ -45,3 +45,11 @@ next-env.d.ts
 # natural-earth source data) — see docs/HANDOFF.md §6/§10. The output
 # archive itself is committed at public/tiles/sjdm.pmtiles.
 /.tools/
+
+# working scratch that ends up in the repo root — not project deliverables
+/*.md
+!/README.md
+!/AGENTS.md
+/feedback.txt
+/*.kml
+/*.tar.gz

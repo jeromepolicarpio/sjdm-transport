@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "SJDM Transport does not collect, store, or transmit any personal data.",
   alternates: {
-    canonical: "/privacy",
+    canonical: "/privacy/",
   },
 };
 
@@ -14,7 +14,7 @@ const LAST_UPDATED = "2026-08-30";
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-6 py-10">
+    <div className="mx-auto w-full max-w-2xl px-6 py-10">
       <Link href="/" className="text-sm underline underline-offset-2">
         &larr; Back to map
       </Link>

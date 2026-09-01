@@ -8,7 +8,9 @@ export default function manifest(): MetadataRoute.Manifest {
     name: SITE_NAME,
     short_name: SITE_NAME,
     description: SITE_DESCRIPTION,
-    start_url: "/",
+    // Installed PWAs should open the tool, not the marketing page — same
+    // reasoning as RootGate defaulting to the tool for the native app.
+    start_url: "/app/",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#2563eb",

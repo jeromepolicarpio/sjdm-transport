@@ -29,16 +29,24 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* This is a fixed-viewport app shell (map + overlays), never a scrolling
-   document — any child that overflows its container (a long place name in
-   StartEndBar/FareResultCard, e.g.) should clip or wrap in place, not push
-   the whole page into horizontal scroll and let the browser auto-scroll it
-   sideways to reveal a focused control. This is a backstop, not the fix: the
-   actual containment comes from `min-w-0` on the flex chain leading to
-   StartEndBar (see AppShell.tsx) so nowrap/truncated text never forces those
-   containers wider than the viewport in the first place. */
-html,
-body {
+/* Backstop against horizontal scroll — e.g. a long place name in
+   StartEndBar/FareResultCard that would otherwise push the page sideways
+   and let the browser auto-scroll to reveal a focused control. This is a
+   backstop, not the fix: the actual containment comes from `min-w-0` on the
+   flex chain leading to StartEndBar (see AppShell.tsx) so nowrap/truncated
+   text never forces those containers wider than the viewport in the first
+   place.
+
+   `html` only, deliberately not `body` too: setting overflow-x on both
+   pairs each element's own overflow-x/overflow-y per the CSS overflow spec
+   (one non-`visible` axis forces the other from `visible` to `auto`) —
+   giving `body` a computed `overflow-y: auto` turns it into its own inert
+   scroll container. That breaks `position: sticky` for anything inside it
+   (its containing block becomes body, which never actually scrolls, instead
+   of the viewport) and defeats `window.scrollY`-based behavior. `html`
+   already governs viewport-level horizontal clipping on its own — no need
+   to repeat it on `body`. */
+html {
   overflow-x: hidden;
 }
 

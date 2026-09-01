@@ -356,7 +356,11 @@ export function AppShell() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // fixed inset-0 rather than h-full: this no longer relies on body being
+    // height-constrained (see layout.tsx) — it establishes its own
+    // full-viewport box directly, so the landing page sharing the same
+    // <body> can be a normal scrolling document instead.
+    <div className="fixed inset-0 flex flex-col">
       <h1 className="sr-only">
         SJDM Transport — PUV route map and tricycle fare calculator for San
         Jose del Monte, Bulacan
