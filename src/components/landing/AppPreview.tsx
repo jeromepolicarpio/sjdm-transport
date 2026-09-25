@@ -1,77 +1,49 @@
-import { Navigation } from "lucide-react";
+"use client";
 
-// Static mockup of the fare-picker view — never the real MapLibre canvas
-// (that needs PMTiles/network and a client mount). Purely decorative, so a
-// lightweight hand-drawn SVG stand-in keeps maplibre-gl out of the landing
-// page's JS entirely (RootGate only loads AppShell via next/dynamic when
-// the native check passes).
-const PINS = [
-  { top: "32%", left: "38%", label: "Starting point", kind: "origin" as const },
-  { top: "58%", left: "66%", label: "Destination", kind: "destination" as const },
-];
+import { useState } from "react";
+import { ArrowRight, BusFront, Check, Coins, MapPin, Navigation } from "lucide-react";
+import Link from "next/link";
+import { fareSchedule } from "@/data/fare-schedule";
+import styles from "./LandingPage.module.css";
+
+// Schematic illustration, not navigation geometry. Keep the map runtime and
+// full route dataset out of the landing-page preview.
+const sampleSchedule = fareSchedule.find((entry) => entry.bracket === "71-90")!;
 
 export function AppPreview() {
+  const [mode, setMode] = useState<"fare" | "routes">("fare");
+  const isFare = mode === "fare";
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-      <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="flex gap-1.5">
-          <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
-          <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-          <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-        </div>
-        <span className="flex-1 -ml-10 pointer-events-none text-center text-xs font-medium text-slate-400">
-          SJDM Transport
-        </span>
+    <div className={styles.preview}>
+      <div className={styles.previewTop}><span><span className={styles.statusDot} /> A good day to get going.</span><Navigation size={18} aria-hidden /></div>
+      <div className={styles.previewModes} role="group" aria-label="Choose a map preview">
+        <button type="button" aria-pressed={isFare} aria-controls="map-preview-content" onClick={() => setMode("fare")}><Coins size={16} aria-hidden /> Tricycle fares</button>
+        <button type="button" aria-pressed={!isFare} aria-controls="map-preview-content" onClick={() => setMode("routes")}><BusFront size={16} aria-hidden /> PUV routes</button>
       </div>
-
-      <div className="relative aspect-[4/3] w-full bg-slate-100">
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              "linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-        />
-        <svg className="absolute inset-0 h-full w-full opacity-40" viewBox="0 0 400 300" preserveAspectRatio="none">
-          <path d="M0 140 Q120 120 200 150 Q290 180 400 160" stroke="#94a3b8" strokeWidth="3" fill="none" />
-          <path d="M150 0 Q160 120 190 150 Q220 190 210 300" stroke="#94a3b8" strokeWidth="2" fill="none" />
+      <div className={styles.mapDrawing} aria-hidden="true">
+        <svg viewBox="0 0 600 530" fill="none" preserveAspectRatio="xMidYMid slice">
+          <defs><pattern id="landing-blocks" width="112" height="94" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)"><rect width="112" height="94" fill="#e8edf1" /><rect x="9" y="9" width="41" height="30" rx="5" fill="#dce3e9" /><rect x="58" y="9" width="44" height="30" rx="5" fill="#dce3e9" /><rect x="9" y="47" width="93" height="36" rx="5" fill="#dce3e9" /><path d="M0 0H112M0 0V94" stroke="#f9fbfd" strokeWidth="9" /></pattern></defs>
+          <rect width="600" height="530" fill="url(#landing-blocks)" />
+          <path d="M465-30C350 75 530 160 450 245S465 430 610 460" stroke="#c6dfe7" strokeWidth="38" />
+          <path d="M-40 370L115 300L194 184L338 151L392-20M202 550L250 360L370 275L620 212" stroke="#cbd5df" strokeWidth="24" />
+          <path d="M-40 370L115 300L194 184L338 151L392-20M202 550L250 360L370 275L620 212" stroke="#fff" strokeWidth="18" />
+          <path d="M-40 115L180 237L390 335L620 380" stroke="#fff" strokeWidth="13" />
+          <path d="M35 60L95 42L130 99L65 127Z" fill="#cedfce" /><path d="M335 365L392 340L440 383L398 428L344 408Z" fill="#cedfce" /><path d="M475 80L540 72L560 123L499 145Z" fill="#cedfce" />
+          <path d="M115 300L194 184L338 151L370 82" stroke="white" strokeWidth="13" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M115 300L194 184L338 151L370 82" stroke={isFare ? "#2151e8" : "#247c64"} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="115" cy="300" r="13" fill="white" stroke={isFare ? "#2151e8" : "#247c64"} strokeWidth="6" />
+          <circle cx="370" cy="82" r="17" fill="#2151e8" stroke="white" strokeWidth="5" /><circle cx="370" cy="82" r="5" fill="white" />
+          {!isFare && <><circle cx="194" cy="184" r="7" fill="white" stroke="#247c64" strokeWidth="4" /><circle cx="338" cy="151" r="7" fill="white" stroke="#247c64" strokeWidth="4" /></>}
+          <g fontFamily="Arial, sans-serif" fontSize="10" fill="#738191"><text x="50" y="199" transform="rotate(-56 50 199)">Neighborhood streets</text><text x="420" y="307" transform="rotate(12 420 307)">Around the city</text></g>
         </svg>
-
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 400 300" preserveAspectRatio="none">
-          <path d="M150 96 Q220 130 264 174" stroke="#2563eb" strokeWidth="3" strokeDasharray="7 6" fill="none" />
-        </svg>
-
-        {PINS.map((pin) => (
-          <div
-            key={pin.label}
-            className="absolute flex flex-col items-center"
-            style={{ top: pin.top, left: pin.left, transform: "translate(-50%, -100%)" }}
-          >
-            <div className="mb-1 whitespace-nowrap rounded-md border border-slate-200 bg-white px-2 py-1 shadow-md">
-              <p className="text-[10px] font-medium text-slate-700">{pin.label}</p>
-            </div>
-            <div
-              className={`flex h-5 w-5 items-center justify-center rounded-full border-2 border-white shadow-sm ${
-                pin.kind === "origin" ? "bg-blue-600" : "bg-emerald-600"
-              }`}
-            >
-              <div className="h-1.5 w-1.5 rounded-full bg-white/90" />
-            </div>
-          </div>
-        ))}
-
-        <div className="absolute inset-x-3 bottom-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-500">
-            <Navigation size={12} className="text-blue-600" aria-hidden />
-            Starting point → Destination
-          </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-lg font-bold text-slate-900">₱17.00</span>
-            <span className="text-[11px] text-slate-400">Regular fare</span>
-          </div>
-        </div>
+        <span className={styles.mapOrigin}>{isFare ? "Your starting point" : "Muzon Central Terminal"}</span>
+        <span className={styles.mapDestination}><MapPin size={13} />{isFare ? "Your next stop" : "SM City SJDM"}</span>
       </div>
+      <div id="map-preview-content" className={styles.previewTicket} aria-live="polite" aria-atomic="true">
+        <div className={styles.ticketHeading}><span>{isFare ? "A little fare clarity." : "A local connection."}</span><span className={styles.sampleBadge}>Example</span></div>
+        {isFare ? <><div className={styles.fareValue}><strong>₱{sampleSchedule.firstTwoKmFare.toFixed(2)}</strong><span>per passenger<br />Regular trip · 2 km</span></div><div className={styles.ticketFoot}><span><Check size={14} aria-hidden /> 2022 fare schedule</span><span>Gasoline ₱71–90/L</span></div></> : <><div className={styles.routeExample}><BusFront size={27} aria-hidden /><strong>Muzon to SM City SJDM<span>Jeepney & modern jeepney</span></strong></div><div className={styles.ticketFoot}><span>Contributed route</span><span>Awaiting verification</span></div></>}
+      </div>
+      <div className={styles.previewBottom}><span>Illustrative map · {isFare ? "sample estimate" : "sample route"}</span><Link href="/app" prefetch={false} aria-label="Explore the real map"><ArrowRight size={19} aria-hidden /></Link></div>
     </div>
   );
 }
